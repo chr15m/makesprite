@@ -15,6 +15,7 @@
   --fg: #112;
   --bg: #ffe;
   --shade: #889;
+  --radius: 4px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -111,7 +112,7 @@ input[type="submit"] {
   background: var(--fg);
   color: var(--bg);
   border: .1rem solid var(--fg);
-  border-radius: 0;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -172,7 +173,7 @@ select {
   color: var(--fg);
   background-color: var(--bg);
   border: .1rem solid var(--fg);
-  border-radius: 0;
+  border-radius: var(--radius);
   font-family: Helvetica, Arial, sans-serif;
 }
 
@@ -247,7 +248,7 @@ progress {
   background: var(--bg);
   color: var(--fg);
   border: .1rem solid var(--fg);
-  border-radius: 0;
+  border-radius: var(--border-radius);
 }
 
 progress::-webkit-progress-bar {
