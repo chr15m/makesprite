@@ -160,6 +160,7 @@ input[type="search"],
 input[type="tel"],
 input[type="text"],
 input[type="url"],
+input,
 textarea,
 select {
   -webkit-appearance: none;
@@ -265,6 +266,10 @@ progress::-moz-progress-bar {
 
 hr {
   border: .05rem solid var(--fg);
+}
+
+.warning {
+  border-color: red;
 }
 
 /* layout */
