@@ -50,11 +50,13 @@
        (> (aget k "length") 45)))
 
 (defn initiate-request [state]
-  (let [text (str
+  (let [prompt (get-in @state [:ui :prompt])
+        text (str
                prompt-dall-e-strict "\n"
-               (get-in @state [:ui :prompt]))
+               prompt)
         payload (assoc api-req-dall-e
                        :prompt text
+                       :original-prompt prompt
                        :metadata {:id (make-id)
                                   :k :dall-e-request
                                   :t (now)})
@@ -107,6 +109,15 @@
                           (-> % .-target .-value))
        :value txt}]))
 
+(defn component:log [state]
+  [:ul
+   (for [log (:log @state)]
+     (let [m (:metadata log)]
+       [:li {:key (:id m)}
+        (case (:k m)
+          :dall-e-response [:img {:src (get-in log [:data 0 :url])}]
+          :dall-e-request [:span (get-in log [:prompt])])]))])
+
 (defn component:main [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
     [:main
@@ -121,9 +132,10 @@
                :disabled (or (empty? (get-in @state [:ui :prompt]))
                              (not (is-valid-key? openai-key))
                              (seq (:inflight @state)))}
-      "send"]
-     (when (seq (:inflight @state))
-       [:p "LOADING..."])]))
+      (if (seq (:inflight @state))
+        "sending"
+        "send")]
+     [component:log state]]))
 
 (defn component:header []
   [:header
