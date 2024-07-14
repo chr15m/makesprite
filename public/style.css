@@ -1,0 +1,284 @@
+/*! modified:
+ * concrete.css v3.0.0 | MIT License | github.com/louismerlin/concrete.css
+ */
+
+/* @import url('https://fonts.googleapis.com/css2?family=Varela+Round:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+* {
+  font-family: "Varela Round", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+} */
+
+:root {
+  --fg: #112;
+  --bg: #ffe;
+  --shade: #889;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #ffe;
+    --bg: #112;
+    --shade: #889;
+  }
+}
+
+html {
+  font-size: 1.25rem;
+  box-sizing: border-box;
+}
+
+*, ::after, ::before {
+  box-sizing: inherit;
+  text-decoration-thickness: .1rem;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Helvetica, Arial, sans-serif;
+  padding: 1em;
+}
+
+a {
+  color: var(--fg);
+}
+
+figure {
+  margin: 0;
+}
+
+figcaption {
+  text-align: right;
+  font-size: 0.8em;
+  border-bottom: .2rem solid var(--fg);
+  padding-bottom: .2rem;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+main section + section {
+  padding: 2rem 0;
+}
+
+body header,
+body main,
+body footer {
+  margin: auto;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 100%;
+}
+
+body main {
+  max-width: 100%;
+  width: 800px;
+}
+
+body > header {
+  padding-top: 8rem;
+  padding-bottom: 8rem;
+  font-size: 1.2em;
+}
+
+h1 { font-size: 2em; }
+h2 { font-size: 1.5em; }
+h3 { font-size: 1.17em; }
+h4 { font-size: 1.00em; }
+h5 { font-size: 0.83em; }
+h6 { font-size: 0.67em; }
+
+footer {
+  text-align: center;
+}
+
+button,
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+  display: inline-block;
+  vertical-align: middle;
+  padding: .2rem .5rem;
+  font-size: 1rem;
+  font-weight: normal;
+  margin-bottom: .5rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: .1rem solid var(--fg);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+button:disabled,
+input[type="button"]:disabled,
+input[type="reset"]:disabled,
+input[type="submit"]:disabled{
+  cursor: not-allowed; 
+  background: var(--shade);
+  border: var(--shade);
+}
+
+ul {
+  list-style: square;
+}
+
+nav {
+  margin: 0.5em 0;
+}
+
+nav ul {
+  padding: 0;
+  list-style: none;
+}
+
+nav ul li {
+  margin: 0 .2rem;
+  display: inline-block;
+}
+
+fieldset {
+  border: .1rem solid var(--fg);
+}
+
+label, legend {
+  display: block;
+  font-weight: bold;
+  margin-bottom: .4rem;
+}
+
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="text"],
+input[type="url"],
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  box-shadow: none;
+  box-sizing: inherit;
+  padding: .5rem .5rem;
+  width: 100%;
+  font-size: 1rem;
+  color: var(--fg);
+  background-color: var(--bg);
+  border: .1rem solid var(--fg);
+  border-radius: 0;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+/**
+ * Set margin for form elements.
+ */
+
+fieldset, input, select, textarea {
+  margin: 0 0 .8rem 0;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg);
+  font-style: italic;
+  opacity: 1;
+}
+
+table {
+  width: 100%;
+  border-spacing: 0;
+}
+
+td, th {
+  padding: .4rem;
+}
+
+td:first-child, th:first-child {
+  padding-left: 0;
+}
+
+td:last-child, th:last-child {
+  padding-right: 0;
+}
+
+th {
+  border-bottom: .1rem solid var(--fg);
+  text-align: left;
+}
+
+td {
+  border-bottom: .05rem solid var(--fg);
+}
+
+blockquote, pre {
+  margin-left: 0;
+  margin-right: 0;
+  padding: .5rem .8rem;
+  border-left: .1rem solid var(--fg);
+  overflow-y: hidden;
+}
+
+pre {
+  border: .05rem dotted var(--fg);
+  border-left: .1rem solid var(--fg);
+}
+
+pre > code {
+  white-space: pre;
+  display: block;
+  font-size: .8rem;
+}
+
+progress {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  height: .5rem;
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: .1rem solid var(--fg);
+  border-radius: 0;
+}
+
+progress::-webkit-progress-bar {
+  background-color: var(--bg);
+}
+
+progress::-webkit-progress-value {
+  background-color: var(--fg);
+}
+
+progress::-moz-progress-bar {
+  background-color: var(--fg);
+}
+
+hr {
+  border: .05rem solid var(--fg);
+}
+
+/* layout */
+
+.spread {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* special */
+
+inline-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0px 0.25em;
+}

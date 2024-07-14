@@ -1,0 +1,24 @@
+{:source-paths ["src"]
+ :dependencies [[reagent "1.2.0"]
+                [binaryage/devtools "1.0.7"]
+                [alandipert/storage-atom "1.2.4"]
+                [applied-science/js-interop "0.2.7"]
+                [funcool/promesa "6.0.2"]]
+ :dev-http {8000 "public/"}
+ :builds {:app {:target :browser
+                :output-dir "public/js"
+                :asset-path "js"
+                :modules {:main {:init-fn makesprite.core/init}}
+                :release {:output-dir "build/js"}
+                :compiler-options {:external-config
+                                   ;; these are for legibility when using dark theme devtools
+                                   ;; any of these can be overwritten
+                                   ;; https://github.com/binaryage/cljs-devtools/blob/master/src/lib/devtools/defaults.cljs
+                                   {:devtools/config
+                                    {:keyword-style   "color: #909113;"
+                                     :cljs-land-style "background: rgba(0,0,0,0);color:#eee;border-radius:2px;"
+                                     :string-style    "color: #16b4c4;"
+                                     :symbol-style    "color: rgb(239,194,194);"
+                                     :body-style      "display:inline-block;padding:3px 12px;border-top:2px solid rgba(60,90,60,.1);
+                                                      margin:1px;margin-top:0px;background:transparent;"
+                                     }}}}}}
