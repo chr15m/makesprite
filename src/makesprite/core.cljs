@@ -88,6 +88,25 @@
                   (update-in [:ui] dissoc :prompt)
                   (update-in [:log] conj result))))))
 
+(defn button-notify [el]
+  (let [cl (aget el "classList")
+        rmfn (fn [] (.remove cl "notify"))]
+    (if (.contains cl "notify")
+      (rmfn)
+      (.addEventListener el "transitionend" rmfn #js {:once true}))
+    ; trigger CSS reflow
+    ((fn [] (aget el "offsetHeight")))
+    (.add cl "notify")))
+
+(defn copy-text [el txt]
+  (let [source (js/document.createElement "textarea")]
+    (aset source "value" txt)
+    (.appendChild el source)
+    (.focus source)
+    (.select source)
+    (js/document.execCommand "copy")
+    (.removeChild el source)))
+
 ; *** components *** ;
 
 (defn icon
@@ -116,6 +135,10 @@
      [:img {:src (get-in log [:response :data 0 :url])}]
      [:action-buttons
       [icon
+       {:data-notification-text "Prompt copied!"
+        :on-click #(let [el (-> % .-currentTarget)]
+                     (copy-text el (:prompt parent))
+                     (button-notify el))}
        (rc/inline "tabler/outline/copy.svg")]
       [icon
        {:on-click #(swap! state assoc-in [:ui :prompt] (:prompt parent))}

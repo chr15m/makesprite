@@ -323,3 +323,20 @@ action-buttons {
 action-buttons * {
   cursor: pointer;
 }
+
+[data-notification-text]::before {
+  content: "";
+  visibility: visible;
+  opacity: 1;
+  position: absolute;
+}
+
+[data-notification-text].notify::before {
+  content: attr(data-notification-text);
+  background-color: rgba(0,0,0,0.3);
+  padding: 0.25em;
+  transition: visibility 0s 2s, opacity 1s 1s linear, display 0s 0s;
+  visibility: hidden;
+  opacity: 0;
+  margin-top: -3em;
+}
