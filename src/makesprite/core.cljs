@@ -5,12 +5,9 @@
     [reagent.core :as r]
     [reagent.dom :as rdom]
     [shadow.resource :as rc]
-    [alandipert.storage-atom :refer [local-storage]]
+    [cognitect.transit :as t]
+    ["idb-keyval" :as kv]
     #_ ["openai" :as openai]))
-
-;curl https://api.openai.com/v1/images/generations \
-;  -H "Content-Type: application/json" \
-;  -H "Authorization: Bearer $OPENAI_API_KEY" \
 
 ; *** constants *** ;
 
@@ -54,34 +51,31 @@
         text (str
                prompt-dall-e-strict "\n"
                prompt)
-        payload (assoc api-req-dall-e
-                       :prompt text
-                       :original-prompt prompt
-                       :metadata {:id (make-id)
-                                  :k :dall-e-request
-                                  :t (now)})
+        log-entry {:id (make-id)
+                   :k :dall-e-request
+                   :t (now)
+                   :prompt prompt
+                   :payload (assoc api-req-dall-e :prompt text)}
         api-key (get-in @state [:settings :openai-key])]
     (swap! state
            #(-> %
-                (assoc :inflight payload)
-                (update-in [:log] conj payload)))
+                (assoc :inflight log-entry)
+                (update-in [:log] conj log-entry)))
     (p/let [req (js/fetch
                   (str api-url "/v1/images/generations")
                   #js {:method "POST"
                        :headers #js {:Content-Type "application/json"
                                      :Authorization (str "Bearer " api-key)}
-                       :body (-> payload
-                                 (dissoc :metadata)
+                       :body (-> (:payload log-entry)
                                  clj->js
                                  js/JSON.stringify)})
             result (.json req)
             result (js->clj result :keywordize-keys true)
-            result (assoc result
-                          :metadata
-                          {:id (make-id)
-                           :parent (get-in payload [:metadata :id])
-                           :k :dall-e-response
-                           :t (now)})]
+            result {:id (make-id)
+                    :k :dall-e-response
+                    :t (now)
+                    :parent (get-in log-entry [:id])
+                    :response result}]
       (js/console.log result)
       (swap! state
              #(-> %
@@ -111,12 +105,11 @@
 
 (defn component:log [state]
   [:ul
-   (for [log (:log @state)]
-     (let [m (:metadata log)]
-       [:li {:key (:id m)}
-        (case (:k m)
-          :dall-e-response [:img {:src (get-in log [:data 0 :url])}]
-          :dall-e-request [:span (get-in log [:prompt])])]))])
+   (for [log (reverse (:log @state))]
+     [:li {:key (:id log)}
+      (case (:k log)
+        :dall-e-response [:img {:src (get-in log [:response :data 0 :url])}]
+        :dall-e-request [:span (get-in log [:prompt])])])])
 
 (defn component:main [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
@@ -148,10 +141,7 @@
 
 ; *** launch *** ;
 
-(defonce state
-  (local-storage
-    (r/atom (initial-state))
-    :makesprite-state))
+(defonce state (r/atom nil))
 
 (defn start {:dev/after-load true} []
   (rdom/render
@@ -160,5 +150,34 @@
      [component:main state]]
     (js/document.getElementById "app")))
 
+(def w
+  (t/writer :json
+            #_ {:handlers {js/AudioBuffer (AudioBufferHandler.)}}))
+
+(def r
+  (t/reader :json
+            #_ {:handlers {"audio-buffer" deserialize-audio-buffer}}))
+
+(defn serialize-app-state [structure]
+  (t/write w structure))
+
+(defn deserialize-app-state [transit]
+  (t/read r transit))
+
+; clear the saved state
+; (kv/del "makesprite-state")
+
 (defn init []
-  (start))
+  (add-watch state :state-watcher
+             (fn [_k _r old-state new-state]
+               (when (not= old-state new-state)
+                 (kv/update "makesprite-state"
+                            (fn []
+                              (serialize-app-state new-state))))))
+  (p/let [serialized-value (kv/get "makesprite-state")
+          serialized (if serialized-value
+                       (deserialize-app-state serialized-value)
+                       (initial-state))]
+    (js/console.log "serialized" serialized)
+    (reset! state serialized)
+    (start)))

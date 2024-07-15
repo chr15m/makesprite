@@ -1,7 +1,6 @@
 {:source-paths ["src"]
  :dependencies [[reagent "1.2.0"]
                 [binaryage/devtools "1.0.7"]
-                [alandipert/storage-atom "1.2.4"]
                 [applied-science/js-interop "0.2.7"]
                 [funcool/promesa "6.0.2"]]
  :dev-http {8000 "public/"}
