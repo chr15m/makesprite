@@ -294,3 +294,32 @@ ul.log {
   margin: 0px;
   padding: 0px;
 }
+
+ul.log li {
+  margin: 2em 0px;
+}
+
+ul.log img {
+  border-radius: var(--radius);
+}
+
+ul.log action-buttons {
+  display: flex;
+  justify-content: end;
+  gap: 0;
+}
+
+ul.log action-buttons inline-icon {
+  padding: 0.5em;
+  margin: 0px;
+}
+
+action-buttons {
+  display: flex;
+  justify-content: end;
+  gap: 1em;
+}
+
+action-buttons * {
+  cursor: pointer;
+}

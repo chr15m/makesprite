@@ -46,6 +46,11 @@
        (= (.slice k 0 3) "sk-")
        (> (aget k "length") 45)))
 
+(defn get-parent [response-id logs]
+  (->> logs
+       (filter #(= (:id %) response-id))
+       first))
+
 (defn initiate-request [state]
   (let [prompt (get-in @state [:ui :prompt])
         text (str
@@ -76,7 +81,7 @@
                     :t (now)
                     :parent (get-in log-entry [:id])
                     :response result}]
-      (js/console.log result)
+      (js/console.log "result" result)
       (swap! state
              #(-> %
                   (dissoc :inflight)
@@ -105,14 +110,16 @@
                           (-> % .-target .-value))
        :value txt}]))
 
-(defn component:response [log _state]
-  [:generated-image
-   [:span
-    [icon
-     (rc/inline "tabler/outline/refresh.svg")]
-    [icon
-     (rc/inline "tabler/filled/info-circle.svg")]]
-   [:img {:src (get-in log [:response :data 0 :url])}]])
+(defn component:response [log state]
+  (let [parent (get-parent (:parent log) (:log @state))]
+    [:generated-image
+     [:img {:src (get-in log [:response :data 0 :url])}]
+     [:action-buttons
+      [icon
+       (rc/inline "tabler/outline/copy.svg")]
+      [icon
+       {:on-click #(swap! state assoc-in [:ui :prompt] (:prompt parent))}
+       (rc/inline "tabler/outline/refresh.svg")]]]))
 
 (defn component:log [state]
   [:ul.log
@@ -133,13 +140,18 @@
                                  (-> % .-target .-value))
               :class (when (not (is-valid-key? openai-key)) "warning")}]
      [component:prompt state (r/atom nil)]
-     [:button {:on-click #(initiate-request state)
-               :disabled (or (empty? (get-in @state [:ui :prompt]))
-                             (not (is-valid-key? openai-key))
-                             (seq (:inflight @state)))}
-      (if (seq (:inflight @state))
-        "sending"
-        "send")]
+     (let [disabled (or (empty? (get-in @state [:ui :prompt]))
+                        (not (is-valid-key? openai-key))
+                        (seq (:inflight @state)))]
+       [:action-buttons
+        [:button {:on-click #(swap! state assoc-in [:ui :prompt] "")
+                  :disabled disabled}
+         "clear"]
+        [:button {:on-click #(initiate-request state)
+                  :disabled disabled}
+         (if (seq (:inflight @state))
+           "sending"
+           "send")]])
      [component:log state]]))
 
 (defn component:header []
@@ -190,6 +202,6 @@
           serialized (if serialized-value
                        (deserialize-app-state serialized-value)
                        (initial-state))]
-    (js/console.log "serialized" serialized)
+    (js/console.log "serialized state" serialized)
     (reset! state serialized)
     (start)))
