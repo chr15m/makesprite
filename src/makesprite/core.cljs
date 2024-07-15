@@ -85,11 +85,13 @@
 
 ; *** components *** ;
 
-(defn icon [svg attrs]
-  [:inline-icon
-   (merge {:dangerouslySetInnerHTML
-           {:__html (.replace svg re-html-comment "")}}
-          attrs)])
+(defn icon
+  ([attrs svg]
+   [:inline-icon
+    (merge {:dangerouslySetInnerHTML
+            {:__html (.replace svg re-html-comment "")}}
+           attrs)])
+  ([svg] (icon {} svg)))
 
 ; *** views & event handlers ***;
 
