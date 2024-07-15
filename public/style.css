@@ -288,3 +288,9 @@ inline-icon {
   vertical-align: middle;
   margin: 0px 0.25em;
 }
+
+ul.log {
+  list-style-type: none;
+  margin: 0px;
+  padding: 0px;
+}

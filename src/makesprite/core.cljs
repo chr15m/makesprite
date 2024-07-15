@@ -98,20 +98,30 @@
 (defn component:prompt [state]
   (let [txt (get-in @state [:ui :prompt])]
      [:textarea
-      {:rows 10
+      {:rows 7
        :placeholder "Enter your game sprite prompt here..."
        :on-change #(swap! state
                           assoc-in [:ui :prompt]
                           (-> % .-target .-value))
        :value txt}]))
 
+(defn component:response [log _state]
+  [:generated-image
+   [:span
+    [icon
+     (rc/inline "tabler/outline/refresh.svg")]
+    [icon
+     (rc/inline "tabler/filled/info-circle.svg")]]
+   [:img {:src (get-in log [:response :data 0 :url])}]])
+
 (defn component:log [state]
-  [:ul
+  [:ul.log
    (for [log (reverse (:log @state))]
      [:li {:key (:id log)}
       (case (:k log)
-        :dall-e-response [:img {:src (get-in log [:response :data 0 :url])}]
-        :dall-e-request [:span (get-in log [:prompt])])])])
+        :dall-e-response [component:response log state]
+        #_#_ :dall-e-request [:span (get-in log [:prompt])]
+        nil)])])
 
 (defn component:main [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
