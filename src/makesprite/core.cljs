@@ -26,6 +26,7 @@
   {:model "dall-e-3"
    :prompt ""
    :n 1
+   :response_format "b64_json"
    :size "1792x1024"})
 
 ; *** functions *** ;
@@ -50,6 +51,14 @@
   (->> logs
        (filter #(= (:id %) response-id))
        first))
+
+(defn convert-image-data-to-blob [result]
+  (let [image-data-b64 (get-in result [:data 0 :b64_json])
+        image-array (js/Uint8Array.from (js/atob image-data-b64)
+                                        #(.charCodeAt % 0))]
+    (-> result
+        (update-in [:data 0] dissoc :b64_json)
+        (assoc :blob (js/Blob. #js [image-array])))))
 
 (defn initiate-request [state]
   (let [prompt (get-in @state [:ui :prompt])
@@ -76,6 +85,7 @@
                                  js/JSON.stringify)})
             result (.json req)
             result (js->clj result :keywordize-keys true)
+            result (convert-image-data-to-blob result)
             result {:id (make-id)
                     :k :dall-e-response
                     :t (now)
@@ -131,9 +141,13 @@
        :value txt}]))
 
 (defn component:response [log state]
-  (let [parent (get-parent (:parent log) (:log @state))]
+  (let [parent (get-parent (:parent log) (:log @state))
+        blob (get-in log [:response :blob])
+        url (when blob (js/URL.createObjectURL blob))]
     [:generated-image
-     [:img {:src (get-in log [:response :data 0 :url])}]
+     (if blob
+       [:img {:src url}]
+       [:blockquote (:prompt parent)])
      [:action-buttons
       [icon
        {:data-notification-text "Prompt copied!"
