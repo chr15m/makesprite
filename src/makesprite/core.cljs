@@ -83,20 +83,22 @@
                        :body (-> (:payload log-entry)
                                  clj->js
                                  js/JSON.stringify)})
-            result (.json req)
-            result (js->clj result :keywordize-keys true)
-            result (convert-image-data-to-blob result)
-            result {:id (make-id)
+            res (.json req)
+            ; extract image out to idb-keyval
+            ; res (extract-image-from-response res)
+            res (js->clj res :keywordize-keys true)
+            res (convert-image-data-to-blob res)
+            res {:id (make-id)
                     :k :dall-e-response
                     :t (now)
                     :parent (get-in log-entry [:id])
-                    :response result}]
-      (js/console.log "result" result)
+                    :response res}]
+      (js/console.log "result" res)
       (swap! state
              #(-> %
                   (dissoc :inflight)
                   (update-in [:ui] dissoc :prompt)
-                  (update-in [:log] conj result))))))
+                  (update-in [:log] conj res))))))
 
 (defn button-notify [el]
   (let [cl (aget el "classList")
