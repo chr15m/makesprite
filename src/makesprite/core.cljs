@@ -123,6 +123,7 @@
   (let [txt (get-in @state [:ui :prompt])]
      [:textarea
       {:rows 7
+       :read-only (seq (:inflight @state))
        :placeholder "Enter your game sprite prompt here..."
        :on-change #(swap! state
                           assoc-in [:ui :prompt]
@@ -158,7 +159,6 @@
     [:main
      [:input {:placeholder "Enter OpenAI API key..."
               :value openai-key
-              :read-only (seq (:inflight @state))
               :on-change #(swap! state assoc-in [:settings :openai-key]
                                  (-> % .-target .-value))
               :class (when (not (is-valid-key? openai-key)) "warning")}]
