@@ -53,12 +53,15 @@
        first))
 
 (defn convert-image-data-to-blob [result]
-  (let [image-data-b64 (get-in result [:data 0 :b64_json])
-        image-array (js/Uint8Array.from (js/atob image-data-b64)
-                                        #(.charCodeAt % 0))]
+  (p/let [image-data-b64 (get-in result [:data 0 :b64_json])
+          image-array (js/Uint8Array.from (js/atob image-data-b64)
+                                          #(.charCodeAt % 0))
+          image-blob (js/Blob. #js [image-array])
+          image-id (make-id)]
+    (kv/set (str "image-" image-id) image-blob)
     (-> result
         (update-in [:data 0] dissoc :b64_json)
-        (assoc :blob (js/Blob. #js [image-array])))))
+        (assoc :image-id image-id))))
 
 (defn initiate-request [state]
   (let [prompt (get-in @state [:ui :prompt])
@@ -135,6 +138,7 @@
 
 (defn process-click
   [_state img ev]
+  (js/console.log "process-click")
   (let [target (-> ev .-currentTarget)
         rect (.getBoundingClientRect target)
         x (- (aget ev "clientX") (aget rect "left"))
@@ -190,16 +194,30 @@
                           (-> % .-target .-value))
        :value txt}]))
 
+(defn component:image [state image-id parent]
+  (let [img-ref (r/atom nil)]
+    (p/let [blob (kv/get (str "image-" image-id))
+            url (when blob (js/URL.createObjectURL blob))
+            img (when url (js/Image.))
+            done-fn #(reset! img-ref [img url])]
+      (if img
+        (do
+          (aset img "onload" done-fn)
+          (aset img "onerror" #(reset! img-ref [nil nil]))
+          (j/assoc! img :src url))
+        (done-fn)))
+    (fn []
+      (let [[img url] @img-ref]
+        (if img
+          [:img {:src url
+                 :on-click #(process-click state img %)}]
+          [:blockquote (:prompt parent)])))))
+
 (defn component:response [log state]
   (let [parent (get-parent (:parent log) (:log @state))
-        blob (get-in log [:response :blob])
-        url (when blob (js/URL.createObjectURL blob))
-        img (j/assoc! (js/Image.) :src url)]
+        image-id (get-in log [:response :image-id])]
     [:generated-image
-     (if blob
-       [:img {:src url
-              :on-click #(process-click state img %)}]
-       [:blockquote (:prompt parent)])
+     [component:image state image-id parent]
      [:action-buttons
       [icon
        {:data-notification-text "Prompt copied!"
@@ -235,12 +253,17 @@
        [:action-buttons
         [:button {:on-click #(swap! state assoc-in [:ui :prompt] "")
                   :disabled disabled}
+         [icon (rc/inline "tabler/outline/trash.svg")]
          "clear"]
         [:button {:on-click #(initiate-request state)
                   :disabled disabled}
          (if (seq (:inflight @state))
-           "sending"
-           "send")]])
+           [:<>
+            [icon (rc/inline "tabler/filled/square.svg")]
+            "sending"]
+           [:<>
+            [icon (rc/inline "tabler/filled/square.svg")]
+            "send"])]])
      [component:log state]]))
 
 (defn component:header []
