@@ -119,7 +119,8 @@ input[type="submit"] {
 button:disabled,
 input[type="button"]:disabled,
 input[type="reset"]:disabled,
-input[type="submit"]:disabled{
+input[type="submit"]:disabled,
+textarea[readonly]{
   cursor: not-allowed; 
   background: var(--shade);
   border: var(--shade);
