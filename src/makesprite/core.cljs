@@ -63,6 +63,9 @@
         (update-in [:data 0] dissoc :b64_json)
         (assoc :image-id image-id))))
 
+(defn remove-error [*state]
+  (update-in *state [:ui] dissoc :error-message))
+
 (defn initiate-request [state]
   (let [prompt (get-in @state [:ui :prompt])
         text (str
@@ -77,6 +80,7 @@
     (swap! state
            #(-> %
                 (assoc :inflight log-entry)
+                remove-error
                 (update-in [:log] conj log-entry)))
     (p/catch
       (p/let [req (js/fetch
@@ -276,7 +280,7 @@
          [icon (rc/inline "tabler/outline/alert-circle.svg")]
          msg]
         [icon {:class "right clickable"
-               :on-click #(swap! state update-in [:ui] dissoc :error-message)}
+               :on-click #(swap! state remove-error)}
          (rc/inline "tabler/outline/x.svg")]])
      [component:log state]]))
 
