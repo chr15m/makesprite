@@ -269,10 +269,12 @@
                   :disabled disabled}
          (if (seq (:inflight @state))
            [:<>
-            [icon (rc/inline "tabler/filled/square.svg")]
+            [icon
+             {:class "spin"}
+             (rc/inline "tabler/filled/square.svg")]
             "sending"]
            [:<>
-            [icon (rc/inline "tabler/filled/square.svg")]
+            [icon (rc/inline "tabler/outline/send.svg")]
             "send"])]])
      (when-let [msg (get-in @state [:ui :error-message])]
        [:p.error.spread
