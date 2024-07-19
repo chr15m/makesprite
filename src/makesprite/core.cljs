@@ -271,9 +271,10 @@
             [icon (rc/inline "tabler/filled/square.svg")]
             "send"])]])
      (when-let [msg (get-in @state [:ui :error-message])]
-       [:p.error
-        [icon (rc/inline "tabler/outline/alert-circle.svg")]
-        msg
+       [:p.error.spread
+        [:span
+         [icon (rc/inline "tabler/outline/alert-circle.svg")]
+         msg]
         [icon {:class "right clickable"
                :on-click #(swap! state update-in [:ui] dissoc :error-message)}
          (rc/inline "tabler/outline/x.svg")]])
