@@ -341,3 +341,16 @@ action-buttons * {
   opacity: 0;
   margin-top: -3em;
 }
+
+.error {
+  background-color: #AF3D3D;
+  padding: 0.5em 1em;
+}
+
+.right {
+  float: right;
+}
+
+.clickable {
+  cursor: pointer;
+}

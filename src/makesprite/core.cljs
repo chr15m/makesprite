@@ -78,30 +78,36 @@
            #(-> %
                 (assoc :inflight log-entry)
                 (update-in [:log] conj log-entry)))
-    (p/let [req (js/fetch
-                  (str api-url "/v1/images/generations")
-                  #js {:method "POST"
-                       :headers #js {:Content-Type "application/json"
-                                     :Authorization (str "Bearer " api-key)}
-                       :body (-> (:payload log-entry)
-                                 clj->js
-                                 js/JSON.stringify)})
-            res (.json req)
-            ; extract image out to idb-keyval
-            ; res (extract-image-from-response res)
-            res (js->clj res :keywordize-keys true)
-            res (convert-image-data-to-blob res)
-            res {:id (make-id)
-                    :k :dall-e-response
-                    :t (now)
-                    :parent (get-in log-entry [:id])
-                    :response res}]
-      (js/console.log "result" res)
-      (swap! state
-             #(-> %
-                  (dissoc :inflight)
-                  (update-in [:ui] dissoc :prompt)
-                  (update-in [:log] conj res))))))
+    (p/catch
+      (p/let [req (js/fetch
+                    (str api-url "/v1/images/generations")
+                    #js {:method "POST"
+                         :headers #js {:Content-Type "application/json"
+                                       :Authorization (str "Bearer " api-key)}
+                         :body (-> (:payload log-entry)
+                                   clj->js
+                                   js/JSON.stringify)})
+              res (.json req)
+              ; extract image out to idb-keyval
+              ; res (extract-image-from-response res)
+              res (js->clj res :keywordize-keys true)
+              res (convert-image-data-to-blob res)
+              res {:id (make-id)
+                   :k :dall-e-response
+                   :t (now)
+                   :parent (get-in log-entry [:id])
+                   :response res}]
+        (js/console.log "result" res)
+        (swap! state
+               #(-> %
+                    (dissoc :inflight)
+                    (update-in [:ui] dissoc :prompt)
+                    (update-in [:log] conj res))))
+      (fn [err]
+        (swap! state
+               #(-> %
+                    (dissoc :inflight)
+                    (assoc-in [:ui :error-message] (.toString err))))))))
 
 (defn button-notify [el]
   (let [cl (aget el "classList")
@@ -264,6 +270,13 @@
            [:<>
             [icon (rc/inline "tabler/filled/square.svg")]
             "send"])]])
+     (when-let [msg (get-in @state [:ui :error-message])]
+       [:p.error
+        [icon (rc/inline "tabler/outline/alert-circle.svg")]
+        msg
+        [icon {:class "right clickable"
+               :on-click #(swap! state update-in [:ui] dissoc :error-message)}
+         (rc/inline "tabler/outline/x.svg")]])
      [component:log state]]))
 
 (defn component:header []
