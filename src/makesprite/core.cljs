@@ -316,5 +316,6 @@
                        (deserialize-app-state serialized-value)
                        (initial-state))]
     (js/console.log "serialized state" serialized)
-    (reset! state serialized)
+    (reset! state
+            (dissoc serialized :inflight))
     (start)))
