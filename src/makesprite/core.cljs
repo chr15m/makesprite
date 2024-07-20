@@ -147,57 +147,6 @@
   (aset canvas "width" (aget img "width"))
   (aset canvas "height" (aget img "height")))
 
-(defn process-click
-  [_state img ev]
-  (js/console.log "process-click")
-  (let [target (-> ev .-currentTarget)
-        rect (.getBoundingClientRect target)
-        x (- (aget ev "clientX") (aget rect "left"))
-        y (- (aget ev "clientY") (aget rect "top"))
-        canvas (js/document.querySelector "canvas#workspace")
-        ctx (.getContext canvas "2d")]
-    (resize-canvas-to-image! canvas img)
-    (.drawImage ctx img 0 0 (aget img "width") (aget img "height"))
-    (let [img-data (.getImageData ctx 0 0
-                                        (aget img "width")
-                                        (aget img "height"))
-          img-data-data (aget img-data "data")
-          xs (js/Math.round (* (/ x (aget rect "width")) (aget img "width")))
-          ys (js/Math.round (* (/ y (aget rect "height")) (aget img "height")))
-          index (js/Math.round (* (+ (* ys (aget img "width")) xs) 4))
-          color-clicked (map #(aget img-data-data (+ index %)) (range 4))
-          #_#_ css-color (str "5px solid rgb("
-                         (nth color-clicked 0) ","
-                         (nth color-clicked 1) ","
-                         (nth color-clicked 2)
-                         ")")]
-      ;(js/console.log "pre")
-      ;(js/console.log (.map img-data #(+ % 100)))
-      ;(js/console.log "post")
-      (js/console.log index)
-      (js/console.log xs ys)
-      (js/console.log "img-data" img-data)
-      (js/console.log "color-clicked" color-clicked)
-      ;(js/console.log css-color)
-      ;(aset ctx "fillStyle" "red")
-      ;(.fillRect ctx xs ys 1 1)
-      ;(aset target "style" "border" css-color)
-      (js/console.log "before")
-      (let [ff (floodfill. img-data)]
-        (.fill ff "rgba(0,0,0,0)" xs ys 30)
-        (.putImageData ctx (aget ff "imageData") 0 0))
-      (js/console.log "after"))
-    (comment (js/console.log "rect" rect)
-             (js/console.log "click-pos" [x y])
-             (js/console.log canvas)
-             (js/console.log (aget target "clientWidth")
-                             (aget target "clientHeight"))
-             (js/console.log (aget ev "clientX")
-                             (aget ev "clientY"))
-             (js/console.log (aget img "width")
-                             (aget img "height"))
-             (js/console.log img))))
-
 ; *** views & event handlers ***;
 
 (defn component:prompt [state]
