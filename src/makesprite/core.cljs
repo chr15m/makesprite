@@ -220,8 +220,6 @@
       (let [[img _url] @img-ref]
         (if img
           [:div
-           #_ [:img {:src url
-                  :on-click #(process-click state img %)}]
            [:canvas.chequerboard
             {:ref #(mount-canvas % img)
              :on-click #(canvas-click %)}]]
@@ -235,12 +233,14 @@
      [:action-buttons
       [icon
        {:data-notification-text "Prompt copied!"
+        :title "Copy prompt to clipboard"
         :on-click #(let [el (-> % .-currentTarget)]
                      (copy-text el (:prompt parent))
                      (button-notify el))}
        (rc/inline "tabler/outline/copy.svg")]
       [icon
-       {:on-click (fn [_ev]
+       {:title "Re-run prompt"
+        :on-click (fn [_ev]
                     (swap! state assoc-in [:ui :prompt] (:prompt parent))
                     (-> (js/document.querySelector "#prompt")
                         (.scrollIntoView true)))}
