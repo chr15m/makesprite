@@ -36,7 +36,8 @@
 (defn initial-state []
   {:inflight {}
    :settings {:openai-key nil}
-   :ui {:prompt placeholder-prompt}
+   :ui {:prompt placeholder-prompt
+        :click-mode :sprite}
    :log []})
 
 (defn now [] (-> (js/Date.) .toISOString))
@@ -278,7 +279,7 @@
       (resize-canvas-to-image! canvas img-data)
       (.putImageData ctx img-data 0 0))))
 
-(defn canvas-click [state _image-id ev]
+(defn canvas-click [state image-id ev]
   (let [canvas (-> ev .-currentTarget)
         ctx (.getContext canvas "2d")
         rect (.getBoundingClientRect canvas)
@@ -292,25 +293,24 @@
         ys (js/Math.round (* (/ y (aget rect "height")) h))
         index (js/Math.round (* (+ (* ys w) xs) 4))
         color-clicked (map #(aget img-data-data (+ index %)) (range 4))
-        #_#_ css-color (str "5px solid rgb("
-                            (nth color-clicked 0) ","
-                            (nth color-clicked 1) ","
-                            (nth color-clicked 2)
-                            ")")]
+        click-mode (get-in @state [:ui :click-mode])]
     (js/console.log "color-clicked" color-clicked)
-    (when (not= color-clicked '(0 0 0 0))
-      (swap! state assoc-in [:ui :sprite] :loading)
-      (p/let [_ (p/delay 1)
-              sprite-image-data (multi-pass-flood-fill-and-extract
-                                  canvas xs ys [0 0 0 0])]
-        (js/console.log "extracted" sprite-image-data)
-        (swap! state assoc-in [:ui :sprite] sprite-image-data))
-      (js/console.log "done extract"))
-    #_ (let [ff (floodfill. img-data)]
-         (.fill ff "rgba(0,0,0,0)" xs ys 50)
-         (.putImageData ctx (aget ff "imageData") 0 0)
-         (p/let [blob (canvas-to-blob canvas)]
-           (kv/set (str "image-processed-" image-id) blob)))))
+    (case click-mode
+      :sprite
+      (when (not= color-clicked '(0 0 0 0))
+        (swap! state assoc-in [:ui :sprite] :loading)
+        (p/let [_ (p/delay 1)
+                sprite-image-data (multi-pass-flood-fill-and-extract
+                                    canvas xs ys [0 0 0 0])]
+          (js/console.log "extracted" sprite-image-data)
+          (swap! state assoc-in [:ui :sprite] sprite-image-data))
+        (js/console.log "done extract"))
+      :background
+      (let [ff (floodfill. img-data)]
+        (.fill ff "rgba(0,0,0,0)" xs ys 50)
+        (.putImageData ctx (aget ff "imageData") 0 0)
+        (p/let [blob (canvas-to-blob canvas)]
+          (kv/set (str "image-processed-" image-id) blob))))))
 
 (defn component:image [state image-id parent]
   (let [img-ref (r/atom nil)]
@@ -327,33 +327,44 @@
         (done-fn)))
     (fn []
       (let [[img _url] @img-ref]
-        (if img
-          [:div
+        [:div.result
+         (if img
            [:canvas.chequerboard
             {:ref #(mount-canvas % img)
-             :on-click #(canvas-click state image-id %)}]]
-          [:blockquote (:prompt parent)])))))
+             :on-click #(canvas-click state image-id %)}]
+           [:div (:prompt parent)])]))))
 
 (defn component:response [log state]
   (let [parent (get-parent (:parent log) (:log @state))
         image-id (get-in log [:response :image-id])]
     [:generated-image
-     [component:image state image-id parent]
-     [:action-buttons
-      [icon
-       {:data-notification-text "Prompt copied!"
-        :title "Copy prompt to clipboard"
-        :on-click #(let [el (-> % .-currentTarget)]
-                     (copy-text el (:prompt parent))
-                     (button-notify el))}
-       (rc/inline "tabler/outline/copy.svg")]
-      [icon
-       {:title "Re-run prompt"
-        :on-click (fn [_ev]
-                    (swap! state assoc-in [:ui :prompt] (:prompt parent))
-                    (-> (js/document.querySelector "#prompt")
-                        (.scrollIntoView true)))}
-       (rc/inline "tabler/outline/refresh.svg")]]]))
+     [:span.spread
+      (let [click-mode (get-in @state [:ui :click-mode])]
+        [:action-buttons
+         [icon
+          {:class (when (= click-mode :sprite) "selected")
+           :on-click #(swap! state update-in [:ui] assoc :click-mode :sprite)}
+          (rc/inline "tabler/outline/body-scan.svg")]
+         [icon
+          {:class (when (= click-mode :background) "selected")
+           :on-click #(swap! state update-in [:ui] assoc :click-mode :background)}
+          (rc/inline "tabler/outline/eraser.svg")]])
+      [:action-buttons
+       [icon
+        {:data-notification-text "Prompt copied!"
+         :title "Copy prompt to clipboard"
+         :on-click #(let [el (-> % .-currentTarget)]
+                      (copy-text el (:prompt parent))
+                      (button-notify el))}
+        (rc/inline "tabler/outline/copy.svg")]
+       [icon
+        {:title "Re-run prompt"
+         :on-click (fn [_ev]
+                     (swap! state assoc-in [:ui :prompt] (:prompt parent))
+                     (-> (js/document.querySelector "#prompt")
+                         (.scrollIntoView true)))}
+        (rc/inline "tabler/outline/refresh.svg")]]]
+     [component:image state image-id parent]]))
 
 (defn component:log [state]
   [:ul.log

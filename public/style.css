@@ -323,6 +323,21 @@ action-buttons * {
   cursor: pointer;
 }
 
+action-buttons .selected {
+  background-color: var(--shade);
+  border-radius: var(--radius);
+}
+
+div.result {
+  height: 446px;
+  border: .1rem solid var(--shade);
+  border-radius: var(--radius);
+}
+
+div.result > div {
+  padding: 1em;
+}
+
 [data-notification-text]::before {
   content: "";
   visibility: visible;
