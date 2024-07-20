@@ -211,7 +211,37 @@
                           (-> % .-target .-value))
        :value txt}]))
 
-(defn component:image [state image-id parent]
+(defn mount-canvas [canvas img]
+  (when canvas
+    (let [ctx (.getContext canvas "2d")]
+      (resize-canvas-to-image! canvas img)
+      (.drawImage ctx img 0 0 (aget img "width") (aget img "height")))))
+
+(defn canvas-click [ev]
+  (let [canvas (-> ev .-currentTarget)
+        ctx (.getContext canvas "2d")
+        rect (.getBoundingClientRect canvas)
+        x (- (aget ev "clientX") (aget rect "left"))
+        y (- (aget ev "clientY") (aget rect "top"))
+        w (aget canvas "width")
+        h (aget canvas "height")
+        img-data (.getImageData ctx 0 0 w h)
+        img-data-data (aget img-data "data")
+        xs (js/Math.round (* (/ x (aget rect "width")) w))
+        ys (js/Math.round (* (/ y (aget rect "height")) h))
+        index (js/Math.round (* (+ (* ys w) xs) 4))
+        color-clicked (map #(aget img-data-data (+ index %)) (range 4))
+        #_#_ css-color (str "5px solid rgb("
+                            (nth color-clicked 0) ","
+                            (nth color-clicked 1) ","
+                            (nth color-clicked 2)
+                            ")")
+        ff (floodfill. img-data)]
+    (js/console.log "color-clicked" color-clicked)
+    (.fill ff "rgba(0,0,0,0)" xs ys 50)
+    (.putImageData ctx (aget ff "imageData") 0 0)))
+
+(defn component:image [_state image-id parent]
   (let [img-ref (r/atom nil)]
     (p/let [blob (kv/get (str "image-" image-id))
             url (when blob (js/URL.createObjectURL blob))
@@ -224,10 +254,14 @@
           (j/assoc! img :src url))
         (done-fn)))
     (fn []
-      (let [[img url] @img-ref]
+      (let [[img _url] @img-ref]
         (if img
-          [:img {:src url
-                 :on-click #(process-click state img %)}]
+          [:div
+           #_ [:img {:src url
+                  :on-click #(process-click state img %)}]
+           [:canvas.chequerboard
+            {:ref #(mount-canvas % img)
+             :on-click #(canvas-click %)}]]
           [:blockquote (:prompt parent)])))))
 
 (defn component:response [log state]

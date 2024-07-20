@@ -59,7 +59,7 @@ figcaption {
   padding-bottom: .2rem;
 }
 
-img {
+img, canvas {
   max-width: 100%;
   height: auto;
 }
