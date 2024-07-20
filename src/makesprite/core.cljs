@@ -53,13 +53,57 @@
        (filter #(= (:id %) response-id))
        first))
 
-(defn convert-image-data-to-blob [result]
+(defn load-image [url]
+  (js/Promise.
+    (fn [res err]
+      (let [img (js/Image.)]
+        (aset img "onload" #(res img))
+        (aset img "onerror" err)
+        (aset img "src" url)))))
+
+(defn canvas-to-blob [canvas]
+  (js/Promise.
+    (fn [res _err]
+      (.toBlob canvas res))))
+
+(defn resize-canvas-to-image! [canvas img]
+  (aset canvas "width" (aget img "width"))
+  (aset canvas "height" (aget img "height")))
+
+(defn process-b64-image-and-store! [result]
   (p/let [image-data-b64 (get-in result [:data 0 :b64_json])
           image-array (js/Uint8Array.from (js/atob image-data-b64)
                                           #(.charCodeAt % 0))
           image-blob (js/Blob. #js [image-array])
           image-id (make-id)]
     (kv/set (str "image-" image-id) image-blob)
+    ; flood fill the corners and edges
+    (p/let [img (load-image (js/URL.createObjectURL image-blob))
+            canvas (.createElement js/document "canvas")
+            ctx (.getContext canvas "2d")
+            w (aget img "width")
+            h (aget img "height")]
+      (js/console.log "img" img)
+      (resize-canvas-to-image! canvas img)
+      (.drawImage ctx img 0 0 w h)
+      ; flood fill at the corners and edges
+      (let [ff (floodfill. (.getImageData ctx 0 0 w h))
+            w (- w 2)
+            h (- h 2)
+            w2 (js/Math.floor (/ w 2))
+            h2 (js/Math.floor (/ h 2))]
+        (.fill ff "rgba(0,0,0,0)" 0 0 50)
+        (doseq [[x y] [[0 0] [w 0] [w h] [0 h]
+                       [0 h2] [w h2]
+                       [w2 0] [w2 h]]]
+          (.fill ff "rgba(0,0,0,0)" x y 50))
+        (.putImageData ctx (aget ff "imageData") 0 0))
+      ; save the processed version
+      (js/console.log "canvas-to-blob")
+      (p/let [blob (canvas-to-blob canvas)]
+        (kv/set (str "image-processed-" image-id) blob)
+        (js/console.log "image-processed saved")))
+    (js/console.log "save result")
     (-> result
         (update-in [:data 0] dissoc :b64_json)
         (assoc :image-id image-id))))
@@ -96,7 +140,7 @@
               ; extract image out to idb-keyval
               ; res (extract-image-from-response res)
               res (js->clj res :keywordize-keys true)
-              res (convert-image-data-to-blob res)
+              res (process-b64-image-and-store! res)
               res {:id (make-id)
                    :k :dall-e-response
                    :t (now)
@@ -143,10 +187,6 @@
            attrs)])
   ([svg] (icon {} svg)))
 
-(defn resize-canvas-to-image! [canvas img]
-  (aset canvas "width" (aget img "width"))
-  (aset canvas "height" (aget img "height")))
-
 ; *** views & event handlers ***;
 
 (defn component:prompt [state]
@@ -160,7 +200,15 @@
                           (-> % .-target .-value))
        :value txt}]))
 
-(defn multi-pass-flood-fill-and-extract [canvas start-x start-y background-color]
+(defn update-bounding-box [bb x y]
+  (-> bb
+      (update :min-x #(min % x))
+      (update :min-y #(min % y))
+      (update :max-x #(max % x))
+      (update :max-y #(max % y))))
+
+(defn multi-pass-flood-fill-and-extract
+  [canvas start-x start-y background-color]
   (let [ctx (.getContext canvas "2d")
         width (.-width canvas)
         height (.-height canvas)
@@ -168,59 +216,52 @@
         data (.-data image-data)
         extracted-pixels (js/Set.)
         stack (js/Array. #js [start-x start-y])
-        bounding-box (atom {:min-x width, :min-y height, :max-x 0, :max-y 0})]
+        bounding-box (atom {:min-x width
+                            :min-y height
+                            :max-x 0
+                            :max-y 0})]
     ; First pass: Find pixels to extract
     (while (pos? (.-length stack))
       (let [[x y] (.pop stack)
             index (* (+ (* y width) x) 4)
             key (str x "," y)]
-        (when (and (>= x 0)
-                   (< x width)
-                   (>= y 0)
-                   (< y height)
+        (when (and (>= x 0) (< x width)
+                   (>= y 0) (< y height)
                    (not (.has extracted-pixels key)))
           (let [current-color [(aget data index)
                                (aget data (+ index 1))
-                               (aget data (+ index 2)) 
+                               (aget data (+ index 2))
                                (aget data (+ index 3))]]
             (when-not (= current-color background-color)
               (.add extracted-pixels key)
-              (swap! bounding-box (fn [bb]
-                                    (-> bb
-                                        (update :min-x #(min % x))
-                                        (update :min-y #(min % y))
-                                        (update :max-x #(max % x))
-                                        (update :max-y #(max % y)))))
+              (swap! bounding-box update-bounding-box x y)
               (.push stack
-                     #js [(inc x) y]
-                     #js [(dec x) y]
-                     #js [x (inc y)]
-                     #js [x (dec y)]))))))
+                     #js [(inc x) y] #js [(dec x) y]
+                     #js [x (inc y)] #js [x (dec y)]))))))
     ; Second pass: Extract only the identified pixels
     (let [{:keys [min-x min-y max-x max-y]} @bounding-box
-          extracted-width (inc (- max-x min-x))
-          extracted-height (inc (- max-y min-y))
-          extracted-image-data (.createImageData
-                                 ctx
-                                 extracted-width extracted-height)
+          extracted-w (inc (- max-x min-x))
+          extracted-h (inc (- max-y min-y))
+          extracted-image-data (.createImageData ctx extracted-w extracted-h)
           extracted-data (.-data extracted-image-data)]
+
       (doseq [y (range min-y (inc max-y))
               x (range min-x (inc max-x))
               :let [source-index (* (+ (* y width) x) 4)
-                    target-index (* (+ (* (- y min-y) extracted-width)
+                    target-index (* (+ (* (- y min-y) extracted-w)
                                        (- x min-x)) 4)
                     key (str x "," y)]]
         (if (.has extracted-pixels key)
           (do
-            (aset extracted-data target-index (aget data source-index))
-            (aset extracted-data
-                  (+ target-index 1)
+            (aset extracted-data target-index
+                  (aget data source-index))
+            (aset extracted-data (+ target-index 1)
                   (aget data (+ source-index 1)))
-            (aset extracted-data
-                  (+ target-index 2)
+            (aset extracted-data (+ target-index 2)
                   (aget data (+ source-index 2)))
             (aset extracted-data (+ target-index 3) 255))
           (aset extracted-data (+ target-index 3) 0)))
+
       extracted-image-data)))
 
 (defn mount-canvas [canvas img]
@@ -229,19 +270,7 @@
           w (aget img "width")
           h (aget img "height")]
       (resize-canvas-to-image! canvas img)
-      (.drawImage ctx img 0 0 w h)
-      ; flood fill at the corners and edges
-      (let [ff (floodfill. (.getImageData ctx 0 0 w h))
-            w (- w 2)
-            h (- h 2)
-            w2 (js/Math.floor (/ w 2))
-            h2 (js/Math.floor (/ h 2))]
-        (.fill ff "rgba(0,0,0,0)" 0 0 50)
-        (doseq [[x y] [[0 0] [w 0] [w h] [0 h]
-                       [0 h2] [w h2]
-                       [w2 0] [w2 h]]]
-          (.fill ff "rgba(0,0,0,0)" x y 50))
-        (.putImageData ctx (aget ff "imageData") 0 0)))))
+      (.drawImage ctx img 0 0 w h))))
 
 (defn mount-canvas-sprite [canvas img-data]
   (when canvas
@@ -249,7 +278,7 @@
       (resize-canvas-to-image! canvas img-data)
       (.putImageData ctx img-data 0 0))))
 
-(defn canvas-click [state ev]
+(defn canvas-click [state _image-id ev]
   (let [canvas (-> ev .-currentTarget)
         ctx (.getContext canvas "2d")
         rect (.getBoundingClientRect canvas)
@@ -267,19 +296,26 @@
                             (nth color-clicked 0) ","
                             (nth color-clicked 1) ","
                             (nth color-clicked 2)
-                            ")")
-        #_#_ ff (floodfill. img-data)]
+                            ")")]
     (js/console.log "color-clicked" color-clicked)
-    (let [sprite-image-data (multi-pass-flood-fill-and-extract canvas xs ys [0 0 0 0])]
-      (js/console.log "extracted" sprite-image-data)
-      (swap! state assoc-in [:ui :sprite] sprite-image-data))
-    (js/console.log "done extract")
-    #_ (.fill ff "rgba(0,0,0,0)" xs ys 50)
-    #_ (.putImageData ctx (aget ff "imageData") 0 0)))
+    (when (not= color-clicked '(0 0 0 0))
+      (swap! state assoc-in [:ui :sprite] :loading)
+      (p/let [_ (p/delay 1)
+              sprite-image-data (multi-pass-flood-fill-and-extract
+                                  canvas xs ys [0 0 0 0])]
+        (js/console.log "extracted" sprite-image-data)
+        (swap! state assoc-in [:ui :sprite] sprite-image-data))
+      (js/console.log "done extract"))
+    #_ (let [ff (floodfill. img-data)]
+         (.fill ff "rgba(0,0,0,0)" xs ys 50)
+         (.putImageData ctx (aget ff "imageData") 0 0)
+         (p/let [blob (canvas-to-blob canvas)]
+           (kv/set (str "image-processed-" image-id) blob)))))
 
 (defn component:image [state image-id parent]
   (let [img-ref (r/atom nil)]
-    (p/let [blob (kv/get (str "image-" image-id))
+    (p/let [blob (kv/get (str "image-processed-" image-id))
+            blob (or blob (kv/get (str "image-" image-id)))
             url (when blob (js/URL.createObjectURL blob))
             img (when url (js/Image.))
             done-fn #(reset! img-ref [img url])]
@@ -295,7 +331,7 @@
           [:div
            [:canvas.chequerboard
             {:ref #(mount-canvas % img)
-             :on-click #(canvas-click state %)}]]
+             :on-click #(canvas-click state image-id %)}]]
           [:blockquote (:prompt parent)])))))
 
 (defn component:response [log state]
@@ -330,17 +366,24 @@
 
 (defn component:extracted-sprite [state]
   (when-let [img-data (get-in @state [:ui :sprite])]
-    (js/console.log "mount" img-data)
-    [:sprite-dialog
-     [:div
-      [:div.spread
-       [:span "Copied"]
-       [:span
-        [icon {:class "right clickable"
-               :on-click #(swap! state update-in [:ui] dissoc :sprite)}
-         (rc/inline "tabler/outline/x.svg")]]]
-      [:canvas.chequerboard
-       {:ref #(mount-canvas-sprite % img-data)}]]]))
+    (let [close-fn #(swap! state update-in [:ui] dissoc :sprite)]
+      [:sprite-dialog
+       {:on-click #(when (= (aget % "currentTarget")
+                            (aget % "target"))
+                     (close-fn))}
+       [:div
+        [:div.spread
+         [:span]
+         [:span
+          [icon {:class "right clickable"
+                 :on-click close-fn}
+           (rc/inline "tabler/outline/x.svg")]]]
+        (if (= img-data :loading)
+          [:span [icon {:class "spin"}
+                  (rc/inline "tabler/outline/spiral.svg")]
+           "extracting"]
+          [:canvas.chequerboard
+           {:ref #(mount-canvas-sprite % img-data)}])]])))
 
 (defn component:main [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
@@ -366,7 +409,7 @@
            [:<>
             [icon
              {:class "spin"}
-             (rc/inline "tabler/filled/square.svg")]
+             (rc/inline "tabler/outline/spiral.svg")]
             "sending"]
            [:<>
             [icon (rc/inline "tabler/outline/send.svg")]
