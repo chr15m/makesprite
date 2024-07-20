@@ -240,7 +240,10 @@
                      (button-notify el))}
        (rc/inline "tabler/outline/copy.svg")]
       [icon
-       {:on-click #(swap! state assoc-in [:ui :prompt] (:prompt parent))}
+       {:on-click (fn [_ev]
+                    (swap! state assoc-in [:ui :prompt] (:prompt parent))
+                    (-> (js/document.querySelector "#prompt")
+                        (.scrollIntoView true)))}
        (rc/inline "tabler/outline/refresh.svg")]]]))
 
 (defn component:log [state]
