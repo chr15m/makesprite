@@ -182,7 +182,7 @@
           (let [current-color [(aget data index)
                                (aget data (+ index 1))
                                (aget data (+ index 2)) 
-                               0]]
+                               (aget data (+ index 3))]]
             (when-not (= current-color background-color)
               (.add extracted-pixels key)
               (swap! bounding-box (fn [bb]
@@ -243,7 +243,13 @@
           (.fill ff "rgba(0,0,0,0)" x y 50))
         (.putImageData ctx (aget ff "imageData") 0 0)))))
 
-(defn canvas-click [ev]
+(defn mount-canvas-sprite [canvas img-data]
+  (when canvas
+    (let [ctx (.getContext canvas "2d")]
+      (resize-canvas-to-image! canvas img-data)
+      (.putImageData ctx img-data 0 0))))
+
+(defn canvas-click [state ev]
   (let [canvas (-> ev .-currentTarget)
         ctx (.getContext canvas "2d")
         rect (.getBoundingClientRect canvas)
@@ -264,12 +270,14 @@
                             ")")
         #_#_ ff (floodfill. img-data)]
     (js/console.log "color-clicked" color-clicked)
-    (js/console.log (multi-pass-flood-fill-and-extract canvas xs ys [0 0 0 0]))
+    (let [sprite-image-data (multi-pass-flood-fill-and-extract canvas xs ys [0 0 0 0])]
+      (js/console.log "extracted" sprite-image-data)
+      (swap! state assoc-in [:ui :sprite] sprite-image-data))
     (js/console.log "done extract")
     #_ (.fill ff "rgba(0,0,0,0)" xs ys 50)
     #_ (.putImageData ctx (aget ff "imageData") 0 0)))
 
-(defn component:image [_state image-id parent]
+(defn component:image [state image-id parent]
   (let [img-ref (r/atom nil)]
     (p/let [blob (kv/get (str "image-" image-id))
             url (when blob (js/URL.createObjectURL blob))
@@ -287,7 +295,7 @@
           [:div
            [:canvas.chequerboard
             {:ref #(mount-canvas % img)
-             :on-click #(canvas-click %)}]]
+             :on-click #(canvas-click state %)}]]
           [:blockquote (:prompt parent)])))))
 
 (defn component:response [log state]
@@ -320,9 +328,24 @@
         #_#_ :dall-e-request [:span (get-in log [:prompt])]
         nil)])])
 
+(defn component:extracted-sprite [state]
+  (when-let [img-data (get-in @state [:ui :sprite])]
+    (js/console.log "mount" img-data)
+    [:sprite-dialog
+     [:div
+      [:div.spread
+       [:span "Copied"]
+       [:span
+        [icon {:class "right clickable"
+               :on-click #(swap! state update-in [:ui] dissoc :sprite)}
+         (rc/inline "tabler/outline/x.svg")]]]
+      [:canvas.chequerboard
+       {:ref #(mount-canvas-sprite % img-data)}]]]))
+
 (defn component:main [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
     [:main
+     [component:extracted-sprite state]
      [:input {:placeholder "Enter OpenAI API key..."
               :value openai-key
               :on-change #(swap! state assoc-in [:settings :openai-key]
@@ -402,12 +425,14 @@
                (when (not= old-state new-state)
                  (kv/update "makesprite-state"
                             (fn []
-                              (serialize-app-state new-state))))))
+                              (-> new-state
+                                  (dissoc :inflight)
+                                  (update-in [:ui] dissoc :sprite)
+                                  serialize-app-state))))))
   (p/let [serialized-value (kv/get "makesprite-state")
           serialized (if serialized-value
                        (deserialize-app-state serialized-value)
                        (initial-state))]
     (js/console.log "serialized state" serialized)
-    (reset! state
-            (dissoc serialized :inflight))
+    (reset! state serialized)
     (start)))
