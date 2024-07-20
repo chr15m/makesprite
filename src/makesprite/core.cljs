@@ -213,9 +213,23 @@
 
 (defn mount-canvas [canvas img]
   (when canvas
-    (let [ctx (.getContext canvas "2d")]
+    (let [ctx (.getContext canvas "2d")
+          w (aget img "width")
+          h (aget img "height")]
       (resize-canvas-to-image! canvas img)
-      (.drawImage ctx img 0 0 (aget img "width") (aget img "height")))))
+      (.drawImage ctx img 0 0 w h)
+      ; flood fill at the corners and edges
+      (let [ff (floodfill. (.getImageData ctx 0 0 w h))
+            w (- w 2)
+            h (- h 2)
+            w2 (js/Math.floor (/ w 2))
+            h2 (js/Math.floor (/ h 2))]
+        (.fill ff "rgba(0,0,0,0)" 0 0 50)
+        (doseq [[x y] [[0 0] [w 0] [w h] [0 h]
+                       [0 h2] [w h2]
+                       [w2 0] [w2 h]]]
+          (.fill ff "rgba(0,0,0,0)" x y 50))
+        (.putImageData ctx (aget ff "imageData") 0 0)))))
 
 (defn canvas-click [ev]
   (let [canvas (-> ev .-currentTarget)
