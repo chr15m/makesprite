@@ -151,7 +151,7 @@
 
 (defn component:prompt [state]
   (let [txt (get-in @state [:ui :prompt])]
-     [:textarea
+     [:textarea#prompt
       {:rows 7
        :read-only (seq (:inflight @state))
        :placeholder "Enter your game sprite prompt here..."
@@ -159,6 +159,69 @@
                           assoc-in [:ui :prompt]
                           (-> % .-target .-value))
        :value txt}]))
+
+(defn multi-pass-flood-fill-and-extract [canvas start-x start-y background-color]
+  (let [ctx (.getContext canvas "2d")
+        width (.-width canvas)
+        height (.-height canvas)
+        image-data (.getImageData ctx 0 0 width height)
+        data (.-data image-data)
+        extracted-pixels (js/Set.)
+        stack (js/Array. #js [start-x start-y])
+        bounding-box (atom {:min-x width, :min-y height, :max-x 0, :max-y 0})]
+    ; First pass: Find pixels to extract
+    (while (pos? (.-length stack))
+      (let [[x y] (.pop stack)
+            index (* (+ (* y width) x) 4)
+            key (str x "," y)]
+        (when (and (>= x 0)
+                   (< x width)
+                   (>= y 0)
+                   (< y height)
+                   (not (.has extracted-pixels key)))
+          (let [current-color [(aget data index)
+                               (aget data (+ index 1))
+                               (aget data (+ index 2)) 
+                               0]]
+            (when-not (= current-color background-color)
+              (.add extracted-pixels key)
+              (swap! bounding-box (fn [bb]
+                                    (-> bb
+                                        (update :min-x #(min % x))
+                                        (update :min-y #(min % y))
+                                        (update :max-x #(max % x))
+                                        (update :max-y #(max % y)))))
+              (.push stack
+                     #js [(inc x) y]
+                     #js [(dec x) y]
+                     #js [x (inc y)]
+                     #js [x (dec y)]))))))
+    ; Second pass: Extract only the identified pixels
+    (let [{:keys [min-x min-y max-x max-y]} @bounding-box
+          extracted-width (inc (- max-x min-x))
+          extracted-height (inc (- max-y min-y))
+          extracted-image-data (.createImageData
+                                 ctx
+                                 extracted-width extracted-height)
+          extracted-data (.-data extracted-image-data)]
+      (doseq [y (range min-y (inc max-y))
+              x (range min-x (inc max-x))
+              :let [source-index (* (+ (* y width) x) 4)
+                    target-index (* (+ (* (- y min-y) extracted-width)
+                                       (- x min-x)) 4)
+                    key (str x "," y)]]
+        (if (.has extracted-pixels key)
+          (do
+            (aset extracted-data target-index (aget data source-index))
+            (aset extracted-data
+                  (+ target-index 1)
+                  (aget data (+ source-index 1)))
+            (aset extracted-data
+                  (+ target-index 2)
+                  (aget data (+ source-index 2)))
+            (aset extracted-data (+ target-index 3) 255))
+          (aset extracted-data (+ target-index 3) 0)))
+      extracted-image-data)))
 
 (defn mount-canvas [canvas img]
   (when canvas
@@ -199,10 +262,12 @@
                             (nth color-clicked 1) ","
                             (nth color-clicked 2)
                             ")")
-        ff (floodfill. img-data)]
+        #_#_ ff (floodfill. img-data)]
     (js/console.log "color-clicked" color-clicked)
-    (.fill ff "rgba(0,0,0,0)" xs ys 50)
-    (.putImageData ctx (aget ff "imageData") 0 0)))
+    (js/console.log (multi-pass-flood-fill-and-extract canvas xs ys [0 0 0 0]))
+    (js/console.log "done extract")
+    #_ (.fill ff "rgba(0,0,0,0)" xs ys 50)
+    #_ (.putImageData ctx (aget ff "imageData") 0 0)))
 
 (defn component:image [_state image-id parent]
   (let [img-ref (r/atom nil)]
