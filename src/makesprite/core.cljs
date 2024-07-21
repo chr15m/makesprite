@@ -334,6 +334,24 @@
              :on-click #(canvas-click state image-id %)}]
            [:div (:prompt parent)])]))))
 
+(defn delete-log-entry [*state log]
+  (let [parent-id (:parent log)
+        log-id (:id log)
+        image-id (get-in log [:response :image-id])
+        t (now)
+        deleted {:deleted true
+                 :lastModified t}]
+    (kv/set (str "image-" image-id) deleted)
+    (kv/set (str "image-processed-" image-id) deleted)
+    (update-in *state [:log]
+               #(mapv
+                  (fn [log]
+                    (if (or (= (:id log) parent-id)
+                            (= (:id log) log-id))
+                      (merge log deleted)
+                      log))
+                  %))))
+
 (defn component:response [log state]
   (let [parent (get-parent (:parent log) (:log @state))
         image-id (get-in log [:response :image-id])]
@@ -347,9 +365,15 @@
           (rc/inline "tabler/outline/body-scan.svg")]
          [icon
           {:class (when (= click-mode :background) "selected")
-           :on-click #(swap! state update-in [:ui] assoc :click-mode :background)}
+           :on-click #(swap! state update-in [:ui] assoc
+                             :click-mode :background)}
           (rc/inline "tabler/outline/eraser.svg")]])
       [:action-buttons
+       [icon
+        {:title "Delete image"
+         :on-click #(when (js/confirm "Delete this image?")
+                     (swap! state delete-log-entry log))}
+        (rc/inline "tabler/outline/trash.svg")]
        [icon
         {:data-notification-text "Prompt copied!"
          :title "Copy prompt to clipboard"
@@ -369,11 +393,12 @@
 (defn component:log [state]
   [:ul.log
    (for [log (reverse (:log @state))]
-     [:li {:key (:id log)}
-      (case (:k log)
-        :dall-e-response [component:response log state]
-        #_#_ :dall-e-request [:span (get-in log [:prompt])]
-        nil)])])
+     (when (not (:deleted log))
+       [:li {:key (:id log)}
+        (case (:k log)
+          :dall-e-response [component:response log state]
+          #_#_ :dall-e-request [:span (get-in log [:prompt])]
+          nil)]))])
 
 (defn component:extracted-sprite [state]
   (when-let [img-data (get-in @state [:ui :sprite])]
