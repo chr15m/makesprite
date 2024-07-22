@@ -8,6 +8,7 @@
     [cognitect.transit :as t]
     ["idb-keyval" :as kv]
     ["q-floodfill$default" :as floodfill]
+    ["react-intersection-observer" :refer [InView]]
     #_ ["openai" :as openai]))
 
 ; *** constants *** ;
@@ -343,12 +344,11 @@
         (done-fn)))
     (fn []
       (let [[img _url] @img-ref]
-        [:div.result
-         (if img
-           [:canvas.chequerboard
-            {:ref #(mount-canvas % img)
-             :on-click #(canvas-click state image-id %)}]
-           [:div (:prompt parent)])]))))
+        (if img
+          [:canvas.chequerboard
+           {:ref #(mount-canvas % img)
+            :on-click #(canvas-click state image-id %)}]
+          [:div (:prompt parent)])))))
 
 (defn delete-log-entry [*state log]
   (let [parent-id (:parent log)
@@ -368,45 +368,53 @@
                       log))
                   %))))
 
-(defn component:response [log state]
-  (let [parent (get-parent (:parent log) (:log @state))
-        image-id (get-in log [:response :image-id])]
-    [:generated-image
-     [:span.spread
-      (let [click-mode (get-in @state [:ui :click-mode])]
-        [:action-buttons
-         [icon
-          {:title "Extract sprite mode"
-           :class (when (= click-mode :sprite) "selected")
-           :on-click #(swap! state update-in [:ui] assoc :click-mode :sprite)}
-          (rc/inline "tabler/outline/body-scan.svg")]
-         [icon
-          {:title "Erase background mode"
-           :class (when (= click-mode :background) "selected")
-           :on-click #(swap! state update-in [:ui] assoc
-                             :click-mode :background)}
-          (rc/inline "tabler/outline/eraser.svg")]])
-      [:action-buttons
-       [icon
-        {:title "Delete image"
-         :on-click #(when (js/confirm "Delete this image?")
-                     (swap! state delete-log-entry log))}
-        (rc/inline "tabler/outline/trash.svg")]
-       [icon
-        {:data-notification-text "Prompt copied!"
-         :title "Copy prompt to clipboard"
-         :on-click #(let [el (-> % .-currentTarget)]
-                      (copy-text el (:prompt parent))
-                      (notify el))}
-        (rc/inline "tabler/outline/copy.svg")]
-       [icon
-        {:title "Re-run prompt"
-         :on-click (fn [_ev]
-                     (swap! state assoc-in [:ui :prompt] (:prompt parent))
-                     (-> (js/document.querySelector "#prompt")
-                         (.scrollIntoView true)))}
-        (rc/inline "tabler/outline/refresh.svg")]]]
-     [component:image state image-id parent]]))
+(defn component:log-item [log state show?]
+  (fn [] ; has to be in a function to isolate the InView observer
+    (let [parent (get-parent (:parent log) (:log @state))
+          image-id (get-in log [:response :image-id])]
+      [:generated-image
+       [:> InView {:as "span"
+                   :on-change (fn [inView _entry]
+                                ;(js/console.log "inView" inView entry)
+                                (when inView
+                                  (reset! show? true)))}
+        [:span.spread
+         (let [click-mode (get-in @state [:ui :click-mode])]
+           [:action-buttons
+            [icon
+             {:title "Extract sprite mode"
+              :class (when (= click-mode :sprite) "selected")
+              :on-click #(swap! state update-in [:ui] assoc :click-mode :sprite)}
+             (rc/inline "tabler/outline/body-scan.svg")]
+            [icon
+             {:title "Erase background mode"
+              :class (when (= click-mode :background) "selected")
+              :on-click #(swap! state update-in [:ui] assoc
+                                :click-mode :background)}
+             (rc/inline "tabler/outline/eraser.svg")]])
+         [:action-buttons
+          [icon
+           {:title "Delete image"
+            :on-click #(when (js/confirm "Delete this image?")
+                         (swap! state delete-log-entry log))}
+           (rc/inline "tabler/outline/trash.svg")]
+          [icon
+           {:data-notification-text "Prompt copied!"
+            :title "Copy prompt to clipboard"
+            :on-click #(let [el (-> % .-currentTarget)]
+                         (copy-text el (:prompt parent))
+                         (notify el))}
+           (rc/inline "tabler/outline/copy.svg")]
+          [icon
+           {:title "Re-run prompt"
+            :on-click (fn [_ev]
+                        (swap! state assoc-in [:ui :prompt] (:prompt parent))
+                        (-> (js/document.querySelector "#prompt")
+                            (.scrollIntoView true)))}
+           (rc/inline "tabler/outline/refresh.svg")]]]
+        [:div.result
+         (when @show?
+           [component:image state image-id parent])]]])))
 
 (defn component:log [state]
   [:ul.log
@@ -414,7 +422,7 @@
      (when (not (:deleted log))
        [:li {:key (:id log)}
         (case (:k log)
-          :dall-e-response [component:response log state]
+          :dall-e-response [component:log-item log state (r/atom false)]
           #_#_ :dall-e-request [:span (get-in log [:prompt])]
           nil)]))])
 
@@ -457,12 +465,9 @@
        {:on-click #(swap! state assoc-in [:ui :screen] :home)}
        "Done"]]]))
 
-(defn component:home [state]
-  (let [openai-key (get-in @state [:settings :openai-key])]
-    [:<>
-     [component:extracted-sprite state]
-     [component:prompt state (r/atom nil)]
-     (let [disabled (or (empty? (get-in @state [:ui :prompt]))
+(defn component:action-buttons [state]
+  (let [openai-key (get-in @state [:settings :openai-key])
+        disabled (or (empty? (get-in @state [:ui :prompt]))
                         (not (is-valid-key? openai-key))
                         (seq (:inflight @state)))]
        [:action-buttons
@@ -480,16 +485,27 @@
             "sending"]
            [:<>
             [icon (rc/inline "tabler/outline/send.svg")]
-            "send"])]])
-     (when-let [msg (get-in @state [:ui :error-message])]
-       [:p.error.spread
-        [:span
-         [icon (rc/inline "tabler/outline/alert-circle.svg")]
-         msg]
-        [icon {:class "right clickable"
-               :on-click #(swap! state remove-error)}
-         (rc/inline "tabler/outline/x.svg")]])
-     [component:log state]]))
+            "send"])]]))
+
+(defn component:error-message [state]
+  (when-let [msg (get-in @state [:ui :error-message])]
+    [:p.error.spread
+     [:span
+      [icon (rc/inline "tabler/outline/alert-circle.svg")]
+      msg]
+     [icon {:class "right clickable"
+            :on-click #(swap! state remove-error)}
+      (rc/inline "tabler/outline/x.svg")]]))
+
+(defn component:home [state]
+  [:<>
+   [:div
+    [component:extracted-sprite state]
+    [component:prompt state (r/atom nil)]
+    [component:action-buttons state]
+    [component:error-message state]]
+   [:div
+    [component:log state]]])
 
 (defn component:main [state]
   (let [screen (get-in @state [:ui :screen])]
