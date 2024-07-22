@@ -449,6 +449,11 @@
            {:data-notification-text "Sprite copied to clipboard!"
             :ref #(mount-canvas-sprite % img-data)}])]])))
 
+(defn component:done-button [state & [label]]
+  [:button
+   {:on-click #(swap! state assoc-in [:ui :screen] :home)}
+   (or label "Done")])
+
 (defn component:settings [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
     [:<>
@@ -461,9 +466,7 @@
                           (-> % .-target .-value))
        :class (when (not (is-valid-key? openai-key)) "warning")}]
      [:action-buttons
-      [:button
-       {:on-click #(swap! state assoc-in [:ui :screen] :home)}
-       "Done"]]]))
+      [component:done-button state]]]))
 
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
@@ -497,6 +500,19 @@
             :on-click #(swap! state remove-error)}
       (rc/inline "tabler/outline/x.svg")]]))
 
+(defn component:sync [state]
+  [:<>
+   [:h2 "Cloud sync is coming."]
+   [:p "Right now all of your makesprite images and data are stored
+       locally in your browser. Soon I'll add the option to have everything
+       sync'ed to the server. This will mean you can log in on multiple
+       devices and all of your images and folders will sync across and be
+       safely stored on the server."]
+   [:p "There will be a reasonably priced subscription fee for this service."]
+   [:p "Find out when I release the cloud sync version:"]
+   [:action-buttons
+    [component:done-button state "Ok"]]])
+
 (defn component:home [state]
   [:<>
    [:div
@@ -512,6 +528,7 @@
     [:main
      (case screen
        :settings [component:settings state]
+       :sync [component:sync state]
        [component:home state])]))
 
 (defn component:header [state]
