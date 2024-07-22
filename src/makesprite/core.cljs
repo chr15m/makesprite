@@ -159,7 +159,7 @@
                     (dissoc :inflight)
                     (assoc-in [:ui :error-message] (.toString err))))))))
 
-(defn button-notify [el]
+(defn notify [el]
   (let [cl (aget el "classList")
         rmfn (fn [] (.remove cl "notify"))]
     (if (.contains cl "notify")
@@ -298,12 +298,28 @@
     (case click-mode
       :sprite
       (when (not= color-clicked '(0 0 0 0))
-        (swap! state assoc-in [:ui :sprite] :loading)
+        (swap! state assoc-in [:ui :extracted-sprite] {:loading true})
         (p/let [_ (p/delay 1)
                 sprite-image-data (multi-pass-flood-fill-and-extract
                                     canvas xs ys [0 0 0 0])]
           (js/console.log "extracted" sprite-image-data)
-          (swap! state assoc-in [:ui :sprite] sprite-image-data))
+          (swap! state assoc-in [:ui :extracted-sprite]
+                 {:img-data sprite-image-data})
+          ; copy to clipboard
+          (when (aget js/window "ClipboardItem")
+            (p/let [sprite-canvas (doto (.createElement js/document "canvas")
+                                    (aset "width"
+                                          (aget sprite-image-data "width"))
+                                    (aset "height"
+                                          (aget sprite-image-data "height")))
+                    _ctx (doto (.getContext sprite-canvas "2d")
+                           (.putImageData sprite-image-data 0 0))
+                    sprite-blob (canvas-to-blob sprite-canvas)
+                    clipboard-item (js/ClipboardItem.
+                                     (clj->js {"image/png" sprite-blob}))]
+              (js/navigator.clipboard.write #js [clipboard-item])
+              (js/console.log canvas (aget canvas "data-notification-text"))
+              (swap! state assoc-in [:ui :extracted-sprite :copied] true))))
         (js/console.log "done extract"))
       :background
       (let [ff (floodfill. img-data)]
@@ -379,7 +395,7 @@
          :title "Copy prompt to clipboard"
          :on-click #(let [el (-> % .-currentTarget)]
                       (copy-text el (:prompt parent))
-                      (button-notify el))}
+                      (notify el))}
         (rc/inline "tabler/outline/copy.svg")]
        [icon
         {:title "Re-run prompt"
@@ -401,25 +417,27 @@
           nil)]))])
 
 (defn component:extracted-sprite [state]
-  (when-let [img-data (get-in @state [:ui :sprite])]
-    (let [close-fn #(swap! state update-in [:ui] dissoc :sprite)]
+  (when-let [{:keys [img-data copied loading]}
+             (get-in @state [:ui :extracted-sprite])]
+    (let [close-fn #(swap! state update-in [:ui] dissoc :extracted-sprite)]
       [:sprite-dialog
        {:on-click #(when (= (aget % "currentTarget")
                             (aget % "target"))
                      (close-fn))}
        [:div
         [:div.spread
-         [:span]
+         [:span (when copied "Sprite copied!")]
          [:span
           [icon {:class "right clickable"
                  :on-click close-fn}
            (rc/inline "tabler/outline/x.svg")]]]
-        (if (= img-data :loading)
+        (if loading
           [:span [icon {:class "spin"}
                   (rc/inline "tabler/outline/spiral.svg")]
            "extracting"]
           [:canvas.chequerboard
-           {:ref #(mount-canvas-sprite % img-data)}])]])))
+           {:data-notification-text "Sprite copied to clipboard!"
+            :ref #(mount-canvas-sprite % img-data)}])]])))
 
 (defn component:main [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
@@ -460,14 +478,16 @@
          (rc/inline "tabler/outline/x.svg")]])
      [component:log state]]))
 
-(defn component:header []
+(defn component:header [state]
   [:header
    [:nav
     [:ul.spread
      [:li
       [icon (rc/inline "tabler/filled/mushroom.svg")]
       [:strong "makesprite"]]
-     [:li [icon (rc/inline "tabler/outline/menu-2.svg")]]]]])
+     [:li [icon
+           {:on-click #(swap! state assoc :ui :settings)}
+           (rc/inline "tabler/outline/menu-2.svg")]]]]])
 
 ; *** launch *** ;
 
@@ -506,7 +526,7 @@
                             (fn []
                               (-> new-state
                                   (dissoc :inflight)
-                                  (update-in [:ui] dissoc :sprite)
+                                  (update-in [:ui] dissoc :extracted-sprite)
                                   serialize-app-state))))))
   (p/let [serialized-value (kv/get "makesprite-state")
           serialized (if serialized-value
