@@ -37,7 +37,8 @@
   {:inflight {}
    :settings {:openai-key nil}
    :ui {:prompt placeholder-prompt
-        :click-mode :sprite}
+        :click-mode :sprite
+        :screen :home}
    :log []})
 
 (defn now [] (-> (js/Date.) .toISOString))
@@ -440,15 +441,26 @@
            {:data-notification-text "Sprite copied to clipboard!"
             :ref #(mount-canvas-sprite % img-data)}])]])))
 
-(defn component:main [state]
+(defn component:settings [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
-    [:main
+    [:<>
+     [:label {:for "openai-key"} "OpenAI API key:"]
+     [:input#openai-key
+      {:placeholder "Enter OpenAI API key..."
+       :name "openai-key"
+       :value openai-key
+       :on-change #(swap! state assoc-in [:settings :openai-key]
+                          (-> % .-target .-value))
+       :class (when (not (is-valid-key? openai-key)) "warning")}]
+     [:action-buttons
+      [:button
+       {:on-click #(swap! state assoc-in [:ui :screen] :home)}
+       "Done"]]]))
+
+(defn component:home [state]
+  (let [openai-key (get-in @state [:settings :openai-key])]
+    [:<>
      [component:extracted-sprite state]
-     [:input {:placeholder "Enter OpenAI API key..."
-              :value openai-key
-              :on-change #(swap! state assoc-in [:settings :openai-key]
-                                 (-> % .-target .-value))
-              :class (when (not (is-valid-key? openai-key)) "warning")}]
      [component:prompt state (r/atom nil)]
      (let [disabled (or (empty? (get-in @state [:ui :prompt]))
                         (not (is-valid-key? openai-key))
@@ -479,27 +491,53 @@
          (rc/inline "tabler/outline/x.svg")]])
      [component:log state]]))
 
+(defn component:main [state]
+  (let [screen (get-in @state [:ui :screen])]
+    [:main
+     (case screen
+       :settings [component:settings state]
+       [component:home state])]))
+
 (defn component:header [state]
   [:header
    [:nav
     [:ul.spread
-     [:li
+     [:li.clickable
+      {:on-click #(swap! state assoc-in [:ui :screen] :home)}
       [icon (rc/inline "tabler/filled/mushroom.svg")]
       [:strong "makesprite"]]
-     [:li [icon
-           {:on-click #(swap! state assoc :ui :settings)}
-           (rc/inline "tabler/outline/menu-2.svg")]]]]])
+     [:li
+      [:ul
+       [:li
+        [icon
+         {:title "Sync"
+          :class "clickable"
+          :on-click #(swap! state assoc-in [:ui :screen] :sync)}
+         (rc/inline "tabler/outline/world-upload.svg")]]
+       [:li
+        [icon
+         {:title "Projects"
+          :class "clickable"
+          :on-click #(swap! state assoc-in [:ui :screen] :folders)}
+         (rc/inline "tabler/outline/folders.svg")]]
+       [:li
+        [icon
+         {:title "Settings"
+          :class "clickable"
+          :on-click #(swap! state assoc-in [:ui :screen] :settings)}
+         (rc/inline "tabler/outline/settings.svg")]]]]]]])
 
 ; *** launch *** ;
 
 (defonce state (r/atom nil))
 
+(js/console.log "state" @state)
+
 (defn start {:dev/after-load true} []
   (rdom/render
     [:<>
-     [component:header]
-     [component:main state]
-     [:canvas#workspace.chequerboard]]
+     [component:header state]
+     [component:main state]]
     (js/document.getElementById "app")))
 
 (def w
