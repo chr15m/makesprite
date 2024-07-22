@@ -488,24 +488,24 @@
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
         disabled (or (empty? (get-in @state [:ui :prompt]))
-                        (not (is-valid-key? openai-key))
-                        (seq (:inflight @state)))]
-       [:action-buttons
-        [:button {:on-click #(swap! state assoc-in [:ui :prompt] "")
-                  :disabled disabled}
-         [icon (rc/inline "tabler/outline/trash.svg")]
-         "clear"]
-        [:button {:on-click #(initiate-request state)
-                  :disabled disabled}
-         (if (seq (:inflight @state))
-           [:<>
-            [icon
-             {:class "spin"}
-             (rc/inline "tabler/outline/spiral.svg")]
-            "sending"]
-           [:<>
-            [icon (rc/inline "tabler/outline/send.svg")]
-            "send"])]]))
+                     (not (is-valid-key? openai-key))
+                     (seq (:inflight @state)))]
+    [:action-buttons
+     [:button {:on-click #(swap! state assoc-in [:ui :prompt] "")
+               :disabled disabled}
+      [icon (rc/inline "tabler/outline/trash.svg")]
+      "clear"]
+     [:button {:on-click #(initiate-request state)
+               :disabled disabled}
+      (if (seq (:inflight @state))
+        [:<>
+         [icon
+          {:class "spin"}
+          (rc/inline "tabler/outline/spiral.svg")]
+         "sending"]
+        [:<>
+         [icon (rc/inline "tabler/outline/send.svg")]
+         "send"])]]))
 
 (defn component:error-message [state]
   (when-let [msg (get-in @state [:ui :error-message])]
