@@ -356,8 +356,9 @@ div.result > div {
 }
 
 .error {
-  background-color: #AF3D3D;
+  background-color: #782828;
   padding: 0.5em 1em;
+  border-radius: var(--radius);
 }
 
 .clickable {

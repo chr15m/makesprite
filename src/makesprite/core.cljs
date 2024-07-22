@@ -192,6 +192,19 @@
 
 ; *** views & event handlers ***;
 
+(defn component:settings-warning [state]
+  (let [openai-key (get-in @state [:settings :openai-key])]
+    (when (empty? openai-key)
+      [:p.error
+       [icon (rc/inline "tabler/outline/alert-circle.svg")]
+       "No OpenAI API key set. "
+       [:a {:href "#"
+            :on-click (fn [ev]
+                        (.preventDefault ev)
+                        (swap! state assoc-in [:ui :screen] :settings))}
+        "Click here to update the settings"] "."])))
+
+
 (defn component:prompt [state]
   (let [txt (get-in @state [:ui :prompt])]
      [:textarea#prompt
@@ -465,6 +478,10 @@
        :on-change #(swap! state assoc-in [:settings :openai-key]
                           (-> % .-target .-value))
        :class (when (not (is-valid-key? openai-key)) "warning")}]
+     (when (empty? openai-key)
+       [:small [:a {:href "https://platform.openai.com/api-keys"
+                    :target "_BLANK"}
+                "Get an API key here"] "."])
      [:action-buttons
       [component:done-button state]]]))
 
@@ -517,6 +534,7 @@
   [:<>
    [:div
     [component:extracted-sprite state]
+    [component:settings-warning state]
     [component:prompt state (r/atom nil)]
     [component:action-buttons state]
     [component:error-message state]]
