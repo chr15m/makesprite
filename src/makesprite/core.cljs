@@ -318,7 +318,6 @@
                     clipboard-item (js/ClipboardItem.
                                      (clj->js {"image/png" sprite-blob}))]
               (js/navigator.clipboard.write #js [clipboard-item])
-              (js/console.log canvas (aget canvas "data-notification-text"))
               (swap! state assoc-in [:ui :extracted-sprite :copied] true))))
         (js/console.log "done extract"))
       :background
@@ -376,11 +375,13 @@
       (let [click-mode (get-in @state [:ui :click-mode])]
         [:action-buttons
          [icon
-          {:class (when (= click-mode :sprite) "selected")
+          {:title "Extract sprite mode"
+           :class (when (= click-mode :sprite) "selected")
            :on-click #(swap! state update-in [:ui] assoc :click-mode :sprite)}
           (rc/inline "tabler/outline/body-scan.svg")]
          [icon
-          {:class (when (= click-mode :background) "selected")
+          {:title "Erase background mode"
+           :class (when (= click-mode :background) "selected")
            :on-click #(swap! state update-in [:ui] assoc
                              :click-mode :background)}
           (rc/inline "tabler/outline/eraser.svg")]])
@@ -518,16 +519,17 @@
 ; clear the saved state
 ; (kv/del "makesprite-state")
 
+(defn state-watcher [_k _r old-state new-state]
+  (when (not= old-state new-state)
+    (kv/update "makesprite-state"
+               (fn []
+                 (-> new-state
+                     (dissoc :inflight)
+                     (update-in [:ui] dissoc :extracted-sprite)
+                     serialize-app-state)))))
+
 (defn init []
-  (add-watch state :state-watcher
-             (fn [_k _r old-state new-state]
-               (when (not= old-state new-state)
-                 (kv/update "makesprite-state"
-                            (fn []
-                              (-> new-state
-                                  (dissoc :inflight)
-                                  (update-in [:ui] dissoc :extracted-sprite)
-                                  serialize-app-state))))))
+  (add-watch state :state-watcher state-watcher)
   (p/let [serialized-value (kv/get "makesprite-state")
           serialized (if serialized-value
                        (deserialize-app-state serialized-value)

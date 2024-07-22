@@ -62,7 +62,6 @@ figcaption {
 img, canvas {
   max-width: 100%;
   height: auto;
-  border-radius: var(--radius);
 }
 
 main section + section {
@@ -321,10 +320,11 @@ action-buttons {
 
 action-buttons * {
   cursor: pointer;
+  border: 2px solid transparent;
 }
 
 action-buttons .selected {
-  background-color: var(--shade);
+  border: 2px solid var(--shade);
   border-radius: var(--radius);
 }
 
