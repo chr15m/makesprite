@@ -180,6 +180,17 @@
     (js/document.execCommand "copy")
     (.removeChild el source)))
 
+(defn update-textbox-height [height element]
+  (when element
+    (let [el (if (aget element "style") element element)
+          css-height (aget (.. el -style) "height")]
+      (aset (.. el -style) "height" "auto")
+      (let [sh (aget el "scrollHeight")
+            expanded (+ sh 8)]
+        (aset (.. el -style) "height" css-height)
+        (when (not= @height expanded)
+          (reset! height expanded))))))
+
 ; *** components *** ;
 
 (defn icon
@@ -204,17 +215,25 @@
                         (swap! state assoc-in [:ui :screen] :settings))}
         "Click here to update the settings"] "."])))
 
+(defn set-prompt! [state prompt]
+  (swap! state assoc-in [:ui :prompt] prompt))
 
 (defn component:prompt [state]
-  (let [txt (get-in @state [:ui :prompt])]
-     [:textarea#prompt
-      {:rows 7
-       :read-only (seq (:inflight @state))
-       :placeholder "Enter your game sprite prompt here..."
-       :on-change #(swap! state
-                          assoc-in [:ui :prompt]
-                          (-> % .-target .-value))
-       :value txt}]))
+  (let [height (r/atom 0)]
+    (fn []
+      (let [txt (get-in @state [:ui :prompt])]
+        [:textarea
+         {:id "prompt"
+          :auto-focus true
+          :rows (js/Math.max (get-in @state [:ui :prompt-rows]) 3)
+          :ref #(update-textbox-height height %)
+          :style {:height @height}
+          :read-only (seq (:inflight @state))
+          :placeholder "Enter your game sprite prompt here..."
+          :on-change #(let [el (-> % .-target)]
+                        (set-prompt! state (aget el "value"))
+                        (update-textbox-height height el))
+          :value txt}]))))
 
 (defn update-bounding-box [bb x y]
   (-> bb
@@ -421,7 +440,7 @@
           [icon
            {:title "Re-run prompt"
             :on-click (fn [_ev]
-                        (swap! state assoc-in [:ui :prompt] (:prompt parent))
+                        (set-prompt! state (:prompt parent))
                         (-> (js/document.querySelector "#prompt")
                             (.scrollIntoView true)))}
            (rc/inline "tabler/outline/refresh.svg")]]]
