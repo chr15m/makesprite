@@ -254,11 +254,14 @@
                         (swap! state assoc-in [:ui :screen] :settings))}
         "Click here to update the settings"] "."])))
 
-(defn set-prompt! [state prompt]
-  (swap! state assoc-in [:ui :prompt] prompt))
+(defn set-prompt! [state prompt el]
+  (swap! state assoc-in [:ui :prompt] prompt)
+  (p/do!
+    (p/delay 0)
+    (update-textbox-height (r/cursor state [:ui :prompt-box]) el)))
 
 (defn component:prompt [state]
-  (let [height (r/atom 0)]
+  (let [height (r/cursor state [:ui :prompt-box])]
     (fn []
       (let [txt (get-in @state [:ui :prompt])]
         [:textarea
@@ -270,8 +273,7 @@
           :read-only (seq (:inflight @state))
           :placeholder "Enter your game sprite prompt here..."
           :on-change #(let [el (-> % .-target)]
-                        (set-prompt! state (aget el "value"))
-                        (update-textbox-height height el))
+                        (set-prompt! state (aget el "value") el))
           :value txt}]))))
 
 (defn update-bounding-box [bb x y]
@@ -486,9 +488,9 @@
           [icon
            {:title "Re-run prompt"
             :on-click (fn [_ev]
-                        (set-prompt! state (:prompt parent))
-                        (-> (js/document.querySelector "#prompt")
-                            (.scrollIntoView true)))}
+                        (let [el (js/document.querySelector "#prompt")]
+                          (set-prompt! state (:prompt parent) el)
+                          (.scrollIntoView el true)))}
            (rc/inline "tabler/outline/refresh.svg")]]]
         [:div.result
          (when @show?
@@ -584,7 +586,8 @@
                      (not (is-valid-key? openai-key))
                      (seq (:inflight @state)))]
     [:action-buttons
-     [:button {:on-click #(set-prompt! state "")
+     [:button {:on-click #(set-prompt! state ""
+                                       (js/document.getElementById "prompt"))
                :disabled disabled}
       [icon (rc/inline "tabler/outline/trash.svg")]
       "clear"]
