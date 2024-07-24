@@ -180,6 +180,12 @@
     (js/document.execCommand "copy")
     (.removeChild el source)))
 
+(defn copy-canvas-to-clipboard! [canvas]
+  (p/let [sprite-blob (canvas-to-blob canvas)
+          clipboard-item (js/ClipboardItem.
+                           (clj->js {"image/png" sprite-blob}))]
+    (js/navigator.clipboard.write #js [clipboard-item])))
+
 (defn update-textbox-height [height element]
   (when element
     (let [el (if (aget element "style") element element)
@@ -347,11 +353,8 @@
                                     (aset "height"
                                           (aget sprite-image-data "height")))
                     _ctx (doto (.getContext sprite-canvas "2d")
-                           (.putImageData sprite-image-data 0 0))
-                    sprite-blob (canvas-to-blob sprite-canvas)
-                    clipboard-item (js/ClipboardItem.
-                                     (clj->js {"image/png" sprite-blob}))]
-              (js/navigator.clipboard.write #js [clipboard-item])
+                           (.putImageData sprite-image-data 0 0))]
+              (copy-canvas-to-clipboard! sprite-canvas)
               (swap! state assoc-in [:ui :extracted-sprite :copied] true))))
         (js/console.log "done extract"))
       :background
@@ -477,9 +480,27 @@
           [:span [icon {:class "spin"}
                   (rc/inline "tabler/outline/spiral.svg")]
            "extracting"]
-          [:canvas.chequerboard
-           {:data-notification-text "Sprite copied to clipboard!"
-            :ref #(mount-canvas-sprite % img-data)}])]])))
+          [:<>
+           [:canvas#extracted-sprite.chequerboard
+            {:data-notification-text "Sprite copied to clipboard!"
+             :ref #(mount-canvas-sprite % img-data)}]
+           [:div.spread
+            [:span]
+            [:action-buttons
+             (when (aget js/window "ClipboardItem")
+               [:button
+                {:data-notification-text "Sprite copied!"
+                 :title "Copy prompt to clipboard"
+                 :on-click #(let [el (-> % .-currentTarget)
+                                  canvas (js/document.getElementById
+                                           "extracted-sprite")]
+                              (copy-canvas-to-clipboard! canvas)
+                              (notify el))}
+                [icon (rc/inline "tabler/outline/copy.svg")]
+                "Copy"])
+             [:button
+              [icon (rc/inline "tabler/outline/download.svg")]
+              "Download"]]]])]])))
 
 (defn component:done-button [state & [label]]
   [:button
@@ -510,7 +531,7 @@
                      (not (is-valid-key? openai-key))
                      (seq (:inflight @state)))]
     [:action-buttons
-     [:button {:on-click #(swap! state assoc-in [:ui :prompt] "")
+     [:button {:on-click #(set-prompt! state "")
                :disabled disabled}
       [icon (rc/inline "tabler/outline/trash.svg")]
       "clear"]

@@ -338,6 +338,13 @@ div.result > div {
   padding: 1em;
 }
 
+[data-notification-text] {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 [data-notification-text]::before {
   content: "";
   visibility: visible;
@@ -348,11 +355,19 @@ div.result > div {
 [data-notification-text].notify::before {
   content: attr(data-notification-text);
   background-color: rgba(0,0,0,0.3);
+  color: var(--fg);
   padding: 0.25em;
   transition: visibility 0s 2s, opacity 1s 1s linear, display 0s 0s;
   visibility: hidden;
   opacity: 0;
-  margin-top: -3em;
+  margin: 0px;
+  margin-top: -3.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 8em;
+  border-radius: var(--radius);
 }
 
 .error {
