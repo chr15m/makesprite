@@ -51,6 +51,28 @@
        (= (.slice k 0 3) "sk-")
        (> (aget k "length") 45)))
 
+(defn hex [typedarray]
+  (let [a (js/Array.from (js/Uint8Array. typedarray))]
+    (-> (.map a
+              (fn [b]
+                (-> b
+                    (.toString 16)
+                    (.padStart 2 "0"))))
+        (.join ""))))
+
+(defn sha256 [src]
+  (p/let [b (-> (js/TextEncoder.) (.encode (.toString src)))
+          digest (j/call-in js/crypto [:subtle :digest] "SHA-256" b)]
+    (hex digest)))
+
+(defn obj->sha256 [obj]
+  (p/let [h (hash obj)]
+    (sha256 h)))
+
+(defn short-id [id]
+  (let [parts (-> id str (.split "-"))]
+    (str (first parts) "-" (second parts))))
+
 (defn get-parent [response-id logs]
   (->> logs
        (filter #(= (:id %) response-id))
@@ -186,6 +208,17 @@
                            (clj->js {"image/png" sprite-blob}))]
     (js/navigator.clipboard.write #js [clipboard-item])))
 
+(defn download-canvas [canvas sprite-name]
+  (p/let [blob (canvas-to-blob canvas)
+          url (js/URL.createObjectURL blob)
+          link (js/document.createElement "a")]
+    (aset link "href" url)
+    (aset link "download" (str sprite-name ".png"))
+    (js/document.body.appendChild link)
+    (.click link)
+    (js/document.body.removeChild link)
+    (js/URL.revokeObjectURL url)))
+
 (defn update-textbox-height [height element]
   (when element
     (let [el (if (aget element "style") element element)
@@ -303,7 +336,7 @@
             (aset extracted-data (+ target-index 3) 255))
           (aset extracted-data (+ target-index 3) 0)))
 
-      extracted-image-data)))
+      [extracted-image-data @bounding-box])))
 
 (defn mount-canvas [canvas img]
   (when canvas
@@ -340,11 +373,14 @@
       (when (not= color-clicked '(0 0 0 0))
         (swap! state assoc-in [:ui :extracted-sprite] {:loading true})
         (p/let [_ (p/delay 1)
-                sprite-image-data (multi-pass-flood-fill-and-extract
-                                    canvas xs ys [0 0 0 0])]
+                [sprite-image-data bounding-box]
+                (multi-pass-flood-fill-and-extract
+                  canvas xs ys [0 0 0 0])]
           (js/console.log "extracted" sprite-image-data)
           (swap! state assoc-in [:ui :extracted-sprite]
-                 {:img-data sprite-image-data})
+                 {:img-data sprite-image-data
+                  :image-id image-id
+                  :bounding-box bounding-box})
           ; copy to clipboard
           (when (aget js/window "ClipboardItem")
             (p/let [sprite-canvas (doto (.createElement js/document "canvas")
@@ -381,7 +417,8 @@
       (let [[img _url] @img-ref]
         (if img
           [:canvas.chequerboard
-           {:ref #(mount-canvas % img)
+           {:id (str "canvas-" image-id)
+            :ref #(mount-canvas % img)
             :on-click #(canvas-click state image-id %)}]
           [:div (:prompt parent)])))))
 
@@ -434,6 +471,12 @@
                          (swap! state delete-log-entry log))}
            (rc/inline "tabler/outline/trash.svg")]
           [icon
+           {:title "Download image"
+            :on-click #(download-canvas
+                         (js/document.getElementById (str "canvas-" image-id))
+                         (str "sprites-" (short-id image-id)))}
+           (rc/inline "tabler/outline/download.svg")]
+          [icon
            {:data-notification-text "Prompt copied!"
             :title "Copy prompt to clipboard"
             :on-click #(let [el (-> % .-currentTarget)]
@@ -462,7 +505,7 @@
           nil)]))])
 
 (defn component:extracted-sprite [state]
-  (when-let [{:keys [img-data copied loading]}
+  (when-let [{:keys [img-data copied loading image-id bounding-box]}
              (get-in @state [:ui :extracted-sprite])]
     (let [close-fn #(swap! state update-in [:ui] dissoc :extracted-sprite)]
       [:sprite-dialog
@@ -499,6 +542,16 @@
                 [icon (rc/inline "tabler/outline/copy.svg")]
                 "Copy"])
              [:button
+              {:title "Download sprite"
+               :on-click #(p/let [canvas (js/document.getElementById
+                                           "extracted-sprite")
+                                  bounding-box-hash (obj->sha256 bounding-box)]
+                            (download-canvas canvas
+                                             (str "sprite-"
+                                                  (short-id image-id) "-"
+                                                  (.substr
+                                                    bounding-box-hash
+                                                    0 8))))}
               [icon (rc/inline "tabler/outline/download.svg")]
               "Download"]]]])]])))
 
