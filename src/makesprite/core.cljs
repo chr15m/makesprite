@@ -37,7 +37,8 @@
 (defn initial-state []
   {:inflight {}
    :settings {:openai-key nil}
-   :ui {:prompt placeholder-prompt
+   :templates []
+   :ui {:prompt {:text placeholder-prompt :values {}}
         :click-mode :sprite
         :screen :home}
    :log []})
@@ -136,14 +137,33 @@
 (defn remove-error [*state]
   (update-in *state [:ui] dissoc :error-message))
 
+(def re-mustache (js/RegExp. "{{(.*?)}}" "m"))
+
+(defn extract-variables [txt]
+  (when txt
+    (->> txt
+         (re-seq re-mustache)
+         (map second)
+         set
+         vec)))
+
+(defn replace-vars [prompt-text values]
+  (let [vars (extract-variables prompt-text)]
+    (reduce
+      (fn [txt v]
+        (.replaceAll txt (str "{{" v "}}") (get values v)))
+      prompt-text
+      vars)))
+
 (defn initiate-request [state]
   (let [prompt (get-in @state [:ui :prompt])
         text (str
                prompt-dall-e-strict "\n"
-               prompt)
+               (replace-vars (:text prompt) (:values prompt)))
         log-entry {:id (make-id)
                    :k :dall-e-request
                    :t (now)
+                   :prompt-text text
                    :prompt prompt
                    :payload (assoc api-req-dall-e :prompt text)}
         api-key (get-in @state [:settings :openai-key])]
@@ -162,8 +182,6 @@
                                    clj->js
                                    js/JSON.stringify)})
               res (.json req)
-              ; extract image out to idb-keyval
-              ; res (extract-image-from-response res)
               res (js->clj res :keywordize-keys true)
               res (process-b64-image-and-store! res)
               res {:id (make-id)
@@ -254,30 +272,33 @@
                         (swap! state assoc-in [:ui :screen] :settings))}
         "Click here to update the settings"] "."])))
 
-(defn set-prompt! [state prompt el]
-  (swap! state assoc-in [:ui :prompt] prompt)
+(defn set-prompt! [state prompt where el]
+  (let [coords [:ui :prompt]
+        coords (when where (conj coords where))]
+    (swap! state assoc-in coords prompt))
   (p/do!
     (p/delay 0)
-    (update-textbox-height (r/cursor state [:ui :prompt-box]) el)))
-
-(def re-mustache (js/RegExp. "{{(.*?)}}" "m"))
+    (update-textbox-height (r/cursor state [:ui :prompt :height]) el)))
 
 (defn component:prompt [state]
-  (let [height (r/cursor state [:ui :prompt-box])]
+  (let [height (r/cursor state [:ui :prompt :height])]
     (fn []
-      (let [txt (get-in @state [:ui :prompt])
-            variables (vec (set (map second (re-seq re-mustache txt))))]
+      (let [txt (get-in @state [:ui :prompt :text])
+            variables (extract-variables txt)]
         [:<>
          [:textarea
           {:id "prompt"
            :auto-focus true
-           :rows (js/Math.max (get-in @state [:ui :prompt-rows]) 3)
+           :rows 3
            :ref #(update-textbox-height height %)
            :style {:height @height}
            :read-only (seq (:inflight @state))
            :placeholder "Enter your game sprite prompt here..."
            :on-change #(let [el (-> % .-target)]
-                         (set-prompt! state (aget el "value") el))
+                         (set-prompt! state
+                                      (aget el "value")
+                                      :text
+                                      el))
            :value txt}]
          (doall
            (for [v variables]
@@ -289,8 +310,8 @@
                 [:input {:name id
                          :id id
                          :placeholder display-name
-                         :value (get-in @state [:ui :prompt-vars v])
-                         :on-change #(swap! state assoc-in [:ui :prompt-vars v]
+                         :value (get-in @state [:ui :prompt :values v])
+                         :on-change #(swap! state assoc-in [:ui :prompt :values v]
                                             (-> % .-target .-value))}]])))]))))
 
 (defn update-bounding-box [bb x y]
@@ -439,7 +460,7 @@
            {:id (str "canvas-" image-id)
             :ref #(mount-canvas % img)
             :on-click #(canvas-click state image-id %)}]
-          [:div (:prompt parent)])))))
+          [:div (get-in parent [:prompt :text])])))))
 
 (defn delete-log-entry [*state log]
   (let [parent-id (:parent log)
@@ -499,14 +520,14 @@
            {:data-notification-text "Prompt copied!"
             :title "Copy prompt to clipboard"
             :on-click #(let [el (-> % .-currentTarget)]
-                         (copy-text el (:prompt parent))
+                         (copy-text el (get-in parent [:prompt :text]))
                          (notify el))}
            (rc/inline "tabler/outline/copy.svg")]
           [icon
            {:title "Re-run prompt"
             :on-click (fn [_ev]
                         (let [el (js/document.querySelector "#prompt")]
-                          (set-prompt! state (:prompt parent) el)
+                          (set-prompt! state (:prompt parent) nil el)
                           (.scrollIntoView el true)))}
            (rc/inline "tabler/outline/refresh.svg")]]]
         [:div.result
@@ -520,7 +541,7 @@
        [:li {:key (:id log)}
         (case (:k log)
           :dall-e-response [component:log-item log state (r/atom false)]
-          #_#_ :dall-e-request [:span (get-in log [:prompt])]
+          #_#_ :dall-e-request [:span (get-in log [:prompt :text])]
           nil)]))])
 
 (defn component:extracted-sprite [state]
@@ -599,12 +620,13 @@
 
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
-        disabled (or (empty? (get-in @state [:ui :prompt]))
+        disabled (or (empty? (get-in @state [:ui :prompt :text]))
                      (not (is-valid-key? openai-key))
                      (seq (:inflight @state)))]
     [:action-buttons
-     [:button {:on-click #(set-prompt! state ""
-                                       (js/document.getElementById "prompt"))
+     [:button {:on-click #(set-prompt! state {:text ""
+                                              :values {}}
+                                       nil (js/document.getElementById "prompt"))
                :disabled disabled}
       [icon (rc/inline "tabler/outline/trash.svg")]
       "clear"]
