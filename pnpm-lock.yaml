@@ -14,6 +14,9 @@ importers:
       idb-keyval:
         specifier: ^6.2.1
         version: 6.2.1
+      nbb:
+        specifier: ^1.2.190
+        version: 1.2.190
       q-floodfill:
         specifier: ^1.3.1
         version: 1.3.1
@@ -193,6 +196,9 @@ packages:
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
+  import-meta-resolve@2.2.2:
+    resolution: {integrity: sha512-f8KcQ1D80V7RnqVm+/lirO9zkOxjGxhaTC1IPrBGd3MEfNgmNG67tSUO9gTi2F3Blr2Az6g1vocaxzkVnWl9MA==}
+
   inherits@2.0.3:
     resolution: {integrity: sha512-x00IRNXNy63jwGkJmzPigoySHbaqpNuzKbBOmzK+g2OdZpQ9w+sxCN+VSB3ja7IAge2OP2qpfxTjeNcyjmW1uw==}
 
@@ -224,6 +230,10 @@ packages:
 
   minimalistic-crypto-utils@1.0.1:
     resolution: {integrity: sha512-JIYlbt6g8i5jKfJ3xz7rF0LXmv2TkDxBLUkiBeZ7bAx4GnnNMr8xFpGnOxn6GhTEHx3SjRrZEoU+j04prX1ktg==}
+
+  nbb@1.2.190:
+    resolution: {integrity: sha512-edLVjSmLDJhwkmJV4Z2k/Uw9wwSjWcZjFfMwPUkYjkznnG9KyWEaUsAf6odjyMslDCHp5hWM/ceKnoU3PpylmA==}
+    hasBin: true
 
   node-libs-browser@2.2.1:
     resolution: {integrity: sha512-h/zcD8H9kaDZ9ALUWwlBUDo6TKF8a7qBSCSEGfjTVIYeqsioSKaAX+BN7NgiMGp6iSIXZ3PxgCu8KS3b71YK5Q==}
@@ -653,6 +663,8 @@ snapshots:
 
   ieee754@1.2.1: {}
 
+  import-meta-resolve@2.2.2: {}
+
   inherits@2.0.3: {}
 
   inherits@2.0.4: {}
@@ -681,6 +693,10 @@ snapshots:
   minimalistic-assert@1.0.1: {}
 
   minimalistic-crypto-utils@1.0.1: {}
+
+  nbb@1.2.190:
+    dependencies:
+      import-meta-resolve: 2.2.2
 
   node-libs-browser@2.2.1:
     dependencies:
