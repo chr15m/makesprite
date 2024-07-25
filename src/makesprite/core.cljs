@@ -260,21 +260,38 @@
     (p/delay 0)
     (update-textbox-height (r/cursor state [:ui :prompt-box]) el)))
 
+(def re-mustache (js/RegExp. "{{(.*?)}}" "m"))
+
 (defn component:prompt [state]
   (let [height (r/cursor state [:ui :prompt-box])]
     (fn []
-      (let [txt (get-in @state [:ui :prompt])]
-        [:textarea
-         {:id "prompt"
-          :auto-focus true
-          :rows (js/Math.max (get-in @state [:ui :prompt-rows]) 3)
-          :ref #(update-textbox-height height %)
-          :style {:height @height}
-          :read-only (seq (:inflight @state))
-          :placeholder "Enter your game sprite prompt here..."
-          :on-change #(let [el (-> % .-target)]
-                        (set-prompt! state (aget el "value") el))
-          :value txt}]))))
+      (let [txt (get-in @state [:ui :prompt])
+            variables (vec (set (map second (re-seq re-mustache txt))))]
+        [:<>
+         [:textarea
+          {:id "prompt"
+           :auto-focus true
+           :rows (js/Math.max (get-in @state [:ui :prompt-rows]) 3)
+           :ref #(update-textbox-height height %)
+           :style {:height @height}
+           :read-only (seq (:inflight @state))
+           :placeholder "Enter your game sprite prompt here..."
+           :on-change #(let [el (-> % .-target)]
+                         (set-prompt! state (aget el "value") el))
+           :value txt}]
+         (doall
+           (for [v variables]
+             (let [id (str "var-" v)
+                   display-name (.replaceAll v "_" " ")]
+               [:label {:for id
+                        :key id}
+                display-name
+                [:input {:name id
+                         :id id
+                         :placeholder display-name
+                         :value (get-in @state [:ui :prompt-vars v])
+                         :on-change #(swap! state assoc-in [:ui :prompt-vars v]
+                                            (-> % .-target .-value))}]])))]))))
 
 (defn update-bounding-box [bb x y]
   (-> bb
