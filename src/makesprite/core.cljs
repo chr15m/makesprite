@@ -8,8 +8,7 @@
     [cognitect.transit :as t]
     ["idb-keyval" :as kv]
     ["q-floodfill$default" :as floodfill]
-    ["react-intersection-observer" :refer [InView]]
-    #_ ["openai" :as openai]))
+    ["react-intersection-observer" :refer [InView]]))
 
 ; *** constants *** ;
 
@@ -37,7 +36,7 @@
 (defn initial-state []
   {:inflight {}
    :settings {:openai-key nil}
-   :templates []
+   :templates {}
    :ui {:prompt {:text placeholder-prompt :values {}}
         :click-mode :sprite
         :screen :home}
@@ -248,6 +247,46 @@
         (when (not= @height expanded)
           (reset! height expanded))))))
 
+(defn show-modal [*state component]
+  (assoc-in *state [:ui :modal] component))
+
+(defn close-modal [*state]
+  (update-in *state [:ui] dissoc :modal))
+
+(defn templates-match? [a b]
+  (let [check-keys [:text :values]]
+    (= (select-keys a check-keys) (select-keys b check-keys))))
+
+(defn get-matching-template
+  "Find a template with the same text and values as the passed in prompt."
+  [templates prompt]
+  (->> templates
+       (filter #(templates-match? % prompt))
+       first))
+
+(defn save-template [*state prompt template-name]
+  (let [prompt (if (:id prompt)
+                 prompt
+                 (assoc prompt :id (make-id)))]
+    (update-in *state [:templates]
+               #(->> %
+                     (remove (fn [t] (templates-match? t prompt)))
+                     (concat [(assoc prompt
+                                     :name template-name
+                                     :lastModifed (now))])))))
+
+(defn delete-template [*state template]
+  (update-in *state [:templates]
+             (fn [templates]
+               (remove #(templates-match? % template) templates))))
+
+(defn use-template [*state template]
+  (-> *state
+      (update-in [:ui]
+                 assoc
+                 :prompt (dissoc template :id :lastModified)
+                 :screen :home)))
+
 ; *** components *** ;
 
 (defn icon
@@ -274,7 +313,7 @@
 
 (defn set-prompt! [state prompt where el]
   (let [coords [:ui :prompt]
-        coords (when where (conj coords where))]
+        coords (if where (conj coords where) coords)]
     (swap! state assoc-in coords prompt))
   (p/do!
     (p/delay 0)
@@ -309,6 +348,7 @@
                 display-name
                 [:input {:name id
                          :id id
+                         :disabled (seq (:inflight @state))
                          :placeholder display-name
                          :value (get-in @state [:ui :prompt :values v])
                          :on-change #(swap! state assoc-in [:ui :prompt :values v]
@@ -526,8 +566,12 @@
           [icon
            {:title "Re-run prompt"
             :on-click (fn [_ev]
-                        (let [el (js/document.querySelector "#prompt")]
-                          (set-prompt! state (:prompt parent) nil el)
+                        (let [el (js/document.querySelector "#prompt")
+                              prompt (:prompt parent)
+                              prompt (if (= (type prompt) js/String)
+                                       {:text prompt}
+                                       prompt)]
+                          (set-prompt! state prompt nil el)
                           (.scrollIntoView el true)))}
            (rc/inline "tabler/outline/refresh.svg")]]]
         [:div.result
@@ -548,7 +592,7 @@
   (when-let [{:keys [img-data copied loading image-id bounding-box]}
              (get-in @state [:ui :extracted-sprite])]
     (let [close-fn #(swap! state update-in [:ui] dissoc :extracted-sprite)]
-      [:sprite-dialog
+      [:sprite-dialog.modal
        {:on-click #(when (= (aget % "currentTarget")
                             (aget % "target"))
                      (close-fn))}
@@ -603,6 +647,7 @@
 (defn component:settings [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
     [:<>
+     [:h2 "Settings"]
      [:label {:for "openai-key"} "OpenAI API key:"]
      [:input#openai-key
       {:placeholder "Enter OpenAI API key..."
@@ -618,29 +663,108 @@
      [:action-buttons
       [component:done-button state]]]))
 
+(defn component:template-name-modal [_state prompt existing-template res _err]
+  (let [save-name (r/atom (:name existing-template))]
+    (js/console.log "existing-template" existing-template)
+    (fn []
+      [:div.modal
+       {:on-click #(when (= (aget % "currentTarget")
+                            (aget % "target"))
+                     (res))}
+       [:div
+        [:div.spread
+         [:span]
+         [:span
+          [icon {:class "right clickable"
+                 :on-click #(res)}
+           (rc/inline "tabler/outline/x.svg")]]]
+        [:label "Template name"
+         [:input {:placeholder "Template name..."
+                  :auto-focus true
+                  :value @save-name
+                  :on-change #(reset! save-name (-> % .-target .-value))}]]
+        [:div.spread
+         [:span]
+         [:action-buttons
+          [:button
+           {:title "Cancel"
+            :on-click #(res)}
+           [icon (rc/inline "tabler/outline/x.svg")]
+           "Cancel"]
+          [:button
+           {:title "Save template"
+            :on-click #(res {:save @save-name :prompt prompt})
+            :disabled (empty? @save-name)}
+           [icon (rc/inline "tabler/outline/device-floppy.svg")]
+           "Save"]]]]])))
+
+(defn component:message [state msg]
+  [:div.modal
+   {:on-click #(when (= (aget % "currentTarget")
+                        (aget % "target"))
+                 (swap! state close-modal))}
+   [:div
+    [:div.spread
+     [:span]
+     [:span
+      [icon {:class "right clickable"
+             :on-click #(swap! state close-modal)}
+       (rc/inline "tabler/outline/x.svg")]]]
+    [:p msg]
+    [:div.spread
+     [:span]
+     [:action-buttons
+      [:button
+       {:title "Done"
+        :on-click #(swap! state close-modal)}
+       [icon (rc/inline "tabler/outline/check.svg")]
+       "Ok"]]]]])
+
+(defn initiate-save-template! [state prompt]
+  (p/let [existing-template (get-matching-template (:templates @state) prompt)
+          result (p/create
+                   (fn [res err]
+                     (swap! state show-modal
+                            [component:template-name-modal
+                             state prompt existing-template res err])))]
+    (if (:save result)
+      (swap! state
+             #(-> %
+                  (save-template prompt (:save result))
+                  (show-modal [component:message state "Template saved!"])))
+      (swap! state close-modal))))
+
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
         disabled (or (empty? (get-in @state [:ui :prompt :text]))
                      (not (is-valid-key? openai-key))
                      (seq (:inflight @state)))]
-    [:action-buttons
-     [:button {:on-click #(set-prompt! state {:text ""
-                                              :values {}}
-                                       nil (js/document.getElementById "prompt"))
-               :disabled disabled}
-      [icon (rc/inline "tabler/outline/trash.svg")]
-      "clear"]
-     [:button {:on-click #(initiate-request state)
-               :disabled disabled}
-      (if (seq (:inflight @state))
-        [:<>
-         [icon
-          {:class "spin"}
-          (rc/inline "tabler/outline/spiral.svg")]
-         "sending"]
-        [:<>
-         [icon (rc/inline "tabler/outline/send.svg")]
-         "send"])]]))
+    [:div.spread
+     (let [prompt (get-in @state [:ui :prompt])
+           txt (get-in @state [:ui :prompt :text])
+           variables (extract-variables txt)]
+       [:button {:on-click #(initiate-save-template! state prompt)
+                 :disabled (or disabled (empty? variables))}
+        [icon (rc/inline "tabler/outline/template.svg")]
+        "save template"])
+     [:action-buttons
+      [:button {:on-click #(set-prompt! state {:text ""
+                                               :values {}}
+                                        nil (js/document.getElementById "prompt"))
+                :disabled disabled}
+       [icon (rc/inline "tabler/outline/trash.svg")]
+       "clear"]
+      [:button {:on-click #(initiate-request state)
+                :disabled disabled}
+       (if (seq (:inflight @state))
+         [:<>
+          [icon
+           {:class "spin"}
+           (rc/inline "tabler/outline/spiral.svg")]
+          "sending"]
+         [:<>
+          [icon (rc/inline "tabler/outline/send.svg")]
+          "send"])]]]))
 
 (defn component:error-message [state]
   (when-let [msg (get-in @state [:ui :error-message])]
@@ -654,16 +778,45 @@
 
 (defn component:sync [state]
   [:<>
-   [:h2 "Cloud sync is coming."]
+   [:h2 "Cloud sync"]
    [:p "Right now all of your makesprite images and data are stored
        locally in your browser. Soon I'll add the option to have everything
-       sync'ed to the server. This will mean you can log in on multiple
-       devices and all of your images and folders will sync across and be
+       sync'ed to the server. You'll be able to log in on multiple
+       devices and all your makesprite images and folders will sync across and be
        safely stored on the server."]
    [:p "There will be a reasonably priced subscription fee for this service."]
    [:p "Find out when I release the cloud sync version:"]
    [:action-buttons
     [component:done-button state "Ok"]]])
+
+(defn component:templates [state]
+  [:<>
+   [:h2 "Templates"]
+   (doall
+     (for [template (:templates @state)]
+       ^{:key (:id template)}
+       [:section.template
+        [:h3 (:name template)]
+        [:blockquote (:text template)]
+        [:ul
+         (for [k (extract-variables (:text template))]
+           [:li {:key k} k " = " "\"" (get-in template [:values k]) "\""])]
+        [:action-buttons
+         [:button
+          {:title "Delete this template"
+           :on-click #(swap! state
+                             (fn [*state]
+                               (-> *state
+                                   (show-modal
+                                     [component:message state "Template deleted"])
+                                   (delete-template template))))}
+          [icon (rc/inline "tabler/outline/x.svg")]
+          "Delete"]
+         [:button
+          {:title "Use this template"
+           :on-click #(swap! state use-template template)}
+          [icon (rc/inline "tabler/outline/check.svg")]
+          "Use"]]]))])
 
 (defn component:home [state]
   [:<>
@@ -679,9 +832,13 @@
 (defn component:main [state]
   (let [screen (get-in @state [:ui :screen])]
     [:main
+     [:<>
+      (let [modal (get-in @state [:ui :modal])]
+        [:<> modal])]
      (case screen
        :settings [component:settings state]
        :sync [component:sync state]
+       :templates [component:templates state]
        [component:home state])]))
 
 (defn component:header [state]
@@ -702,10 +859,22 @@
          (rc/inline "tabler/outline/world-upload.svg")]]
        [:li
         [icon
+         {:title "Templates"
+          :class "clickable"
+          :on-click #(swap! state assoc-in [:ui :screen] :templates)}
+         (rc/inline "tabler/outline/template.svg")]]
+       [:li
+        [icon
          {:title "Projects"
           :class "clickable"
           :on-click #(swap! state assoc-in [:ui :screen] :folders)}
          (rc/inline "tabler/outline/folders.svg")]]
+       [:li
+        [icon
+         {:title "Generate"
+          :class "clickable"
+          :on-click #(swap! state assoc-in [:ui :screen] :home)}
+         (rc/inline "tabler/outline/photo-search.svg")]]
        [:li
         [icon
          {:title "Settings"
@@ -749,11 +918,12 @@
                (fn []
                  (-> new-state
                      (dissoc :inflight)
-                     (update-in [:ui] dissoc :extracted-sprite)
+                     (update-in [:ui] dissoc
+                                :extracted-sprite :modal)
                      serialize-app-state)))))
 
 (defn init []
-  (add-watch state :state-watcher state-watcher)
+  (add-watch state :state-watcher #'state-watcher)
   (p/let [serialized-value (kv/get "makesprite-state")
           serialized (if serialized-value
                        (deserialize-app-state serialized-value)

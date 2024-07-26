@@ -120,6 +120,7 @@ button:disabled,
 input[type="button"]:disabled,
 input[type="reset"]:disabled,
 input[type="submit"]:disabled,
+input:disabled,
 textarea[readonly]{
   cursor: not-allowed; 
   background: var(--shade);
@@ -380,7 +381,7 @@ div.result > div {
   cursor: pointer;
 }
 
-sprite-dialog {
+.modal {
   position: fixed;
   top: 0px;
   left: 0px;
@@ -394,7 +395,7 @@ sprite-dialog {
   background-color: rgba(255, 255, 255, 0.25);
 }
 
-sprite-dialog > * {
+.modal > * {
   min-width: 50%;
   max-width: 90%;
   max-height: 90%;
