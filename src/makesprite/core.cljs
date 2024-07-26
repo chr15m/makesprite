@@ -253,40 +253,6 @@
 (defn close-modal [*state]
   (update-in *state [:ui] dissoc :modal))
 
-(defn templates-match? [a b]
-  (let [check-keys [:text :values]]
-    (= (select-keys a check-keys) (select-keys b check-keys))))
-
-(defn get-matching-template
-  "Find a template with the same text and values as the passed in prompt."
-  [templates prompt]
-  (->> templates
-       (filter #(templates-match? % prompt))
-       first))
-
-(defn save-template [*state prompt template-name]
-  (let [prompt (if (:id prompt)
-                 prompt
-                 (assoc prompt :id (make-id)))]
-    (update-in *state [:templates]
-               #(->> %
-                     (remove (fn [t] (templates-match? t prompt)))
-                     (concat [(assoc prompt
-                                     :name template-name
-                                     :lastModifed (now))])))))
-
-(defn delete-template [*state template]
-  (update-in *state [:templates]
-             (fn [templates]
-               (remove #(templates-match? % template) templates))))
-
-(defn use-template [*state template]
-  (-> *state
-      (update-in [:ui]
-                 assoc
-                 :prompt (dissoc template :id :lastModified)
-                 :screen :home)))
-
 ; *** components *** ;
 
 (defn icon
@@ -663,41 +629,6 @@
      [:action-buttons
       [component:done-button state]]]))
 
-(defn component:template-name-modal [_state prompt existing-template res _err]
-  (let [save-name (r/atom (:name existing-template))]
-    (js/console.log "existing-template" existing-template)
-    (fn []
-      [:div.modal
-       {:on-click #(when (= (aget % "currentTarget")
-                            (aget % "target"))
-                     (res))}
-       [:div
-        [:div.spread
-         [:span]
-         [:span
-          [icon {:class "right clickable"
-                 :on-click #(res)}
-           (rc/inline "tabler/outline/x.svg")]]]
-        [:label "Template name"
-         [:input {:placeholder "Template name..."
-                  :auto-focus true
-                  :value @save-name
-                  :on-change #(reset! save-name (-> % .-target .-value))}]]
-        [:div.spread
-         [:span]
-         [:action-buttons
-          [:button
-           {:title "Cancel"
-            :on-click #(res)}
-           [icon (rc/inline "tabler/outline/x.svg")]
-           "Cancel"]
-          [:button
-           {:title "Save template"
-            :on-click #(res {:save @save-name :prompt prompt})
-            :disabled (empty? @save-name)}
-           [icon (rc/inline "tabler/outline/device-floppy.svg")]
-           "Save"]]]]])))
-
 (defn component:message [state msg]
   [:div.modal
    {:on-click #(when (= (aget % "currentTarget")
@@ -720,27 +651,13 @@
        [icon (rc/inline "tabler/outline/check.svg")]
        "Ok"]]]]])
 
-(defn initiate-save-template! [state prompt]
-  (p/let [existing-template (get-matching-template (:templates @state) prompt)
-          result (p/create
-                   (fn [res err]
-                     (swap! state show-modal
-                            [component:template-name-modal
-                             state prompt existing-template res err])))]
-    (if (:save result)
-      (swap! state
-             #(-> %
-                  (save-template prompt (:save result))
-                  (show-modal [component:message state "Template saved!"])))
-      (swap! state close-modal))))
-
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
         disabled (or (empty? (get-in @state [:ui :prompt :text]))
                      (not (is-valid-key? openai-key))
                      (seq (:inflight @state)))]
     [:div.spread
-     (let [prompt (get-in @state [:ui :prompt])
+     #_ (let [prompt (get-in @state [:ui :prompt])
            txt (get-in @state [:ui :prompt :text])
            variables (extract-variables txt)]
        [:button {:on-click #(initiate-save-template! state prompt)
@@ -789,35 +706,6 @@
    [:action-buttons
     [component:done-button state "Ok"]]])
 
-(defn component:templates [state]
-  [:<>
-   [:h2 "Templates"]
-   (doall
-     (for [template (:templates @state)]
-       ^{:key (:id template)}
-       [:section.template
-        [:h3 (:name template)]
-        [:blockquote (:text template)]
-        [:ul
-         (for [k (extract-variables (:text template))]
-           [:li {:key k} k " = " "\"" (get-in template [:values k]) "\""])]
-        [:action-buttons
-         [:button
-          {:title "Delete this template"
-           :on-click #(swap! state
-                             (fn [*state]
-                               (-> *state
-                                   (show-modal
-                                     [component:message state "Template deleted"])
-                                   (delete-template template))))}
-          [icon (rc/inline "tabler/outline/x.svg")]
-          "Delete"]
-         [:button
-          {:title "Use this template"
-           :on-click #(swap! state use-template template)}
-          [icon (rc/inline "tabler/outline/check.svg")]
-          "Use"]]]))])
-
 (defn component:home [state]
   [:<>
    [:div
@@ -838,7 +726,7 @@
      (case screen
        :settings [component:settings state]
        :sync [component:sync state]
-       :templates [component:templates state]
+       ;:templates [component:templates state]
        [component:home state])]))
 
 (defn component:header [state]
@@ -857,12 +745,12 @@
           :class "clickable"
           :on-click #(swap! state assoc-in [:ui :screen] :sync)}
          (rc/inline "tabler/outline/world-upload.svg")]]
-       [:li
-        [icon
-         {:title "Templates"
-          :class "clickable"
-          :on-click #(swap! state assoc-in [:ui :screen] :templates)}
-         (rc/inline "tabler/outline/template.svg")]]
+       #_ [:li
+           [icon
+            {:title "Templates"
+             :class "clickable"
+             :on-click #(swap! state assoc-in [:ui :screen] :templates)}
+            (rc/inline "tabler/outline/template.svg")]]
        [:li
         [icon
          {:title "Projects"
