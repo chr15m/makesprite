@@ -25,7 +25,7 @@
      inkscape:pagecheckerboard="1"
      showgrid="false"
      inkscape:zoom="5.0234045"
-     inkscape:cx="-6.4697159"
+     inkscape:cx="-8.0622614"
      inkscape:cy="-5.3748409"
      inkscape:window-width="1920"
      inkscape:window-height="1080"
@@ -33,43 +33,46 @@
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg6" />
-  <path
-     stroke="none"
-     d="M0 0h24v24H0z"
-     fill="none"
-     id="path2" />
   <g
-     id="g1370">
+     id="logo">
+    <path
+       stroke="none"
+       d="M 0,0 H 24 V 24 H 0 Z"
+       fill="none"
+       id="path2" />
     <g
-       id="g1228"
-       style="stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none">
-      <path
-         style="fill:#aa0000;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
-         d="M 5.4003715,14.80359 A 1.9,1.9 0 0 1 3.117457,13.601492 L 3.0733563,13.460087 C 1.7733082,8.608242 4.6078863,3.6278981 9.4114354,2.340791 14.214985,1.0536839 19.159973,3.9494992 20.460021,8.8013446 a 1.9,1.9 0 0 1 -1.202099,2.2829144 l -0.141404,0.0441 z"
-         id="path1224" />
-      <path
-         style="fill:#6c5353;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
-         d="m 15.67386,14.12137 1.035277,3.863703 a 3,3 0 0 1 -5.745174,1.721623 l -0.05038,-0.168709 -1.0352765,-3.863703 z"
-         id="path1226" />
+       id="g1370">
+      <g
+         id="g1228"
+         style="stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none">
+        <path
+           style="fill:#aa0000;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+           d="M 5.4003715,14.80359 A 1.9,1.9 0 0 1 3.117457,13.601492 L 3.0733563,13.460087 C 1.7733082,8.608242 4.6078863,3.6278981 9.4114354,2.340791 14.214985,1.0536839 19.159973,3.9494992 20.460021,8.8013446 a 1.9,1.9 0 0 1 -1.202099,2.2829144 l -0.141404,0.0441 z"
+           id="path1224" />
+        <path
+           style="fill:#6c5353;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+           d="m 15.67386,14.12137 1.035277,3.863703 a 3,3 0 0 1 -5.745174,1.721623 l -0.05038,-0.168709 -1.0352765,-3.863703 z"
+           id="path1226" />
+      </g>
+      <g
+         id="g1222">
+        <path
+           style="fill:#aa0000"
+           d="M 5.4003715,14.80359 A 1.9,1.9 0 0 1 3.117457,13.601492 L 3.0733563,13.460087 C 1.7733082,8.608242 4.6078863,3.6278981 9.4114354,2.340791 14.214985,1.0536839 19.159973,3.9494992 20.460021,8.8013446 a 1.9,1.9 0 0 1 -1.202099,2.2829144 l -0.141404,0.0441 z"
+           id="path1020" />
+        <path
+           style="fill:#d38d5f"
+           d="m 15.67386,14.12137 1.035277,3.863703 a 3,3 0 0 1 -5.745174,1.721623 l -0.05038,-0.168709 -1.0352765,-3.863703 z"
+           id="path4" />
+      </g>
     </g>
-    <g
-       id="g1222">
-      <path
-         style="fill:#aa0000"
-         d="M 5.4003715,14.80359 A 1.9,1.9 0 0 1 3.117457,13.601492 L 3.0733563,13.460087 C 1.7733082,8.608242 4.6078863,3.6278981 9.4114354,2.340791 14.214985,1.0536839 19.159973,3.9494992 20.460021,8.8013446 a 1.9,1.9 0 0 1 -1.202099,2.2829144 l -0.141404,0.0441 z"
-         id="path1020" />
-      <path
-         style="fill:#d38d5f"
-         d="m 15.67386,14.12137 1.035277,3.863703 a 3,3 0 0 1 -5.745174,1.721623 l -0.05038,-0.168709 -1.0352765,-3.863703 z"
-         id="path4" />
-    </g>
+    <ellipse
+       style="fill:#ffffff;fill-opacity:0.502424;stroke:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round"
+       id="path3590"
+       cx="0.82054275"
+       cy="9.1821632"
+       rx="2.6917071"
+       ry="1.1657666"
+       transform="rotate(-44.320479)" />
   </g>
-  <ellipse
-     style="fill:#ffffff;fill-opacity:0.502424;stroke:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round"
-     id="path3590"
-     cx="0.82054275"
-     cy="9.1821632"
-     rx="2.6917071"
-     ry="1.1657666"
-     transform="rotate(-44.320479)" />
 </svg>
