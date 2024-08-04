@@ -693,18 +693,22 @@
             :on-click #(swap! state remove-error)}
       (rc/inline "tabler/outline/x.svg")]]))
 
-(defn component:sync [state]
-  [:<>
-   [:h2 "Cloud sync"]
-   [:p "Right now all of your makesprite images and data are stored
-       locally in your browser. Soon I'll add the option to have everything
-       sync'ed to the server. You'll be able to log in on multiple
-       devices and all your makesprite images and folders will sync across and be
-       safely stored on the server."]
-   [:p "There will be a reasonably priced subscription fee for this service."]
-   [:p "Find out when I release the cloud sync version:"]
-   [:action-buttons
-    [component:done-button state "Ok"]]])
+(defn component:discord [state]
+  (let [discord-link "https://discord.gg/gNdX8b9d"]
+    [:<>
+     [:h2 "Discord"]
+     [:p
+      [:a {:href discord-link
+           :target "_BLANK"}
+       "Join the Discord"]
+      " to share prompts and sprites."]
+     [:action-buttons.spread
+      [:a {:href discord-link
+           :target "_BLANK"}
+       [:button
+        [icon (rc/inline "tabler/filled/brand-discord.svg")]
+        "Join"]]
+      [component:done-button state "Close"]]]))
 
 (defn component:home [state]
   [:<>
@@ -725,7 +729,7 @@
         [:<> modal])]
      (case screen
        :settings [component:settings state]
-       :sync [component:sync state]
+       :discord [component:discord state]
        ;:templates [component:templates state]
        [component:home state])]))
 
@@ -750,22 +754,22 @@
       [:ul
        [:li
         [icon
-         {:title "Sync"
+         {:title "Discord"
           :class "clickable"
-          :on-click #(swap! state assoc-in [:ui :screen] :sync)}
-         (rc/inline "tabler/outline/world-upload.svg")]]
+          :on-click #(swap! state assoc-in [:ui :screen] :discord)}
+         (rc/inline "tabler/outline/brand-discord.svg")]]
        #_ [:li
            [icon
             {:title "Templates"
              :class "clickable"
              :on-click #(swap! state assoc-in [:ui :screen] :templates)}
             (rc/inline "tabler/outline/template.svg")]]
-       [:li
-        [icon
-         {:title "Projects"
-          :class "clickable"
-          :on-click #(swap! state assoc-in [:ui :screen] :folders)}
-         (rc/inline "tabler/outline/folders.svg")]]
+       #_ [:li
+           [icon
+            {:title "Projects"
+             :class "clickable"
+             :on-click #(swap! state assoc-in [:ui :screen] :folders)}
+            (rc/inline "tabler/outline/folders.svg")]]
        [:li
         [icon
          {:title "Generate"
