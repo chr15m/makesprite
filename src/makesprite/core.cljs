@@ -793,13 +793,9 @@
      [component:footer]]
     (js/document.getElementById "app")))
 
-(def w
-  (t/writer :json
-            #_ {:handlers {js/AudioBuffer (AudioBufferHandler.)}}))
+(def w (t/writer :json))
 
-(def r
-  (t/reader :json
-            #_ {:handlers {"audio-buffer" deserialize-audio-buffer}}))
+(def r (t/reader :json))
 
 (defn serialize-app-state [structure]
   (t/write w structure))
