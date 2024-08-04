@@ -583,7 +583,7 @@
              (when (aget js/window "ClipboardItem")
                [:button
                 {:data-notification-text "Sprite copied!"
-                 :title "Copy prompt to clipboard"
+                 :title "Copy sprite to clipboard"
                  :on-click #(let [el (-> % .-currentTarget)
                                   canvas (js/document.getElementById
                                            "extracted-sprite")]
