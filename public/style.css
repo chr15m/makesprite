@@ -44,6 +44,18 @@ body {
   padding: 1em;
 }
 
+html, body, #app {
+  min-height: 100%;
+  height: 100%;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1em;
+}
+
 a {
   color: var(--fg);
 }
@@ -71,7 +83,7 @@ main section + section {
 body header,
 body main,
 body footer {
-  margin: auto;
+  margin: 0px auto;
   padding-left: 10px;
   padding-right: 10px;
   width: 100%;
@@ -80,6 +92,7 @@ body footer {
 body main {
   max-width: 100%;
   width: 800px;
+  flex-grow: 1;
 }
 
 body > header {
@@ -97,6 +110,14 @@ h6 { font-size: 0.67em; }
 
 footer {
   text-align: center;
+  padding: 2em 0px;
+}
+
+footer img.me {
+  width: 2em;
+  margin: 0px 0.5em;
+  border-radius: var(--radius);
+  vertical-align: middle;
 }
 
 button,
