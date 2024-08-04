@@ -7,6 +7,9 @@ build: $(shell find src) public/* node_modules
 node_modules: package.json
 	pnpm i --shamefully-hoist
 
+public/logo.png: src/logo.svg
+	inkscape -o public/logo.png -w 512 src/logo.svg
+
 .PHONY: watch clean
 
 watch: node_modules

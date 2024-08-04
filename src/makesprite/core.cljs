@@ -735,7 +735,7 @@
     [:ul.spread
      [:li.clickable
       {:on-click #(swap! state assoc-in [:ui :screen] :home)}
-      [icon (rc/inline "tabler/filled/mushroom.svg")]
+      [icon (rc/inline "logo.svg")]
       [:strong "makesprite"]]
      [:li
       [:ul
