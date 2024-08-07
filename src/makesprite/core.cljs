@@ -128,11 +128,12 @@
       (js/console.log "canvas-to-blob")
       (p/let [blob (canvas-to-blob canvas)]
         (kv/set (str "image-processed-" image-id) blob)
-        (js/console.log "image-processed saved")))
+        (js/console.log "image-processed saved")
     (js/console.log "save result")
     (-> result
         (update-in [:data 0] dissoc :b64_json)
-        (assoc :image-id image-id))))
+        (assoc :image-id image-id
+               :image-hash (sha256 blob)))))))
 
 (defn remove-error [*state]
   (update-in *state [:ui] dissoc :error-message))
@@ -399,7 +400,7 @@
       (resize-canvas-to-image! canvas img-data)
       (.putImageData ctx img-data 0 0))))
 
-(defn canvas-click [state image-id ev]
+(defn canvas-click [state log image-id ev]
   (let [canvas (-> ev .-currentTarget)
         ctx (.getContext canvas "2d")
         rect (.getBoundingClientRect canvas)
@@ -445,9 +446,18 @@
         (.fill ff "rgba(0,0,0,0)" xs ys 50)
         (.putImageData ctx (aget ff "imageData") 0 0)
         (p/let [blob (canvas-to-blob canvas)]
-          (kv/set (str "image-processed-" image-id) blob))))))
+          (kv/set (str "image-processed-" image-id) blob)
+          (swap! state
+                 update-in [:log]
+                 #(mapv
+                    (fn [log-check]
+                      (if (= (:id log-check) (:id log))
+                        (update-in log-check [:response] assoc
+                                   :image-hash (sha256 blob))
+                        log-check))
+                    %)))))))
 
-(defn component:image [state image-id parent]
+(defn component:image [state log image-id parent]
   (let [img-ref (r/atom nil)]
     (p/let [blob (kv/get (str "image-processed-" image-id))
             blob (or blob (kv/get (str "image-" image-id)))
@@ -465,8 +475,9 @@
         (if img
           [:canvas.chequerboard
            {:id (str "canvas-" image-id)
+            :data-image-hash (get-in log [:response :image-hash])
             :ref #(mount-canvas % img)
-            :on-click #(canvas-click state image-id %)}]
+            :on-click #(canvas-click state log image-id %)}]
           [:div (get-in parent [:prompt :text])])))))
 
 (defn delete-log-entry [*state log]
@@ -486,6 +497,28 @@
                       (merge log deleted)
                       log))
                   %))))
+
+(defn revert-to-original-image! [state log]
+  (p/let [image-id (get-in log [:response :image-id])
+          new-image-id (make-id)
+          original-image (kv/get (str "image-" image-id))
+          t (now)
+          deleted {:deleted true
+                   :lastModified t}]
+    (kv/set (str "image-" new-image-id) original-image)
+    (kv/set (str "image-processed-" new-image-id) original-image)
+    (kv/set (str "image-" image-id) deleted)
+    (kv/set (str "image-processed-" image-id) deleted)
+    (swap! state
+           update-in [:log]
+           #(mapv
+              (fn [log-check]
+                (if (= (:id log-check) (:id log))
+                  (update-in log-check [:response] assoc
+                             :image-id new-image-id
+                             :image-hash (sha256 original-image))
+                  log-check))
+              %))))
 
 (defn component:log-item [log state show?]
   (fn [] ; has to be in a function to isolate the InView observer
@@ -518,6 +551,11 @@
                          (swap! state delete-log-entry log))}
            (rc/inline "tabler/outline/trash.svg")]
           [icon
+           {:title "Revert image"
+            :on-click #(when (js/confirm "Revert to original image?")
+                         (revert-to-original-image! state log))}
+           (rc/inline "tabler/outline/arrow-back-up.svg")]
+          [icon
            {:title "Download image"
             :on-click #(download-canvas
                          (js/document.getElementById (str "canvas-" image-id))
@@ -543,7 +581,7 @@
            (rc/inline "tabler/outline/refresh.svg")]]]
         [:div.result
          (when @show?
-           [component:image state image-id parent])]
+           [component:image state log image-id parent])]
         #_ [:> ReactTags
             {:ref (fn [el] (js/console.log "ReactTags" el))
              :allow-new true
