@@ -499,6 +499,64 @@
     (.drawImage ctx img 0 0)
     (kv/set (str "image-processed-" image-id) processed-image-blob)))
 
+(defn component:message-modal [state msg]
+  (let [done-fn #(swap! state close-modal)]
+    [:div.modal
+     {:on-click #(when (= (aget % "currentTarget")
+                          (aget % "target"))
+                   (done-fn))}
+     [:div
+      [:div.spread
+       [:span]
+       [:span
+        [icon {:class "right clickable"
+               :on-click #(done-fn)}
+         (rc/inline "tabler/outline/x.svg")]]]
+      [:p msg]
+      [:div.spread
+       [:span]
+       [:action-buttons
+        [:button
+         {:title "Done"
+          :on-click #(done-fn)}
+         [icon (rc/inline "tabler/outline/check.svg")]
+         "Ok"]]]]]))
+
+(defn component:dialog-modal [state msg callback]
+  (let [done-fn (fn [& [result]]
+                  (callback result)
+                  (swap! state close-modal))]
+    [:div.modal
+     {:on-click #(when (= (aget % "currentTarget")
+                          (aget % "target"))
+                   (done-fn))}
+     [:div
+      [:div.spread
+       [:span]
+       [:span
+        [icon {:class "right clickable"
+               :on-click #(done-fn)}
+         (rc/inline "tabler/outline/x.svg")]]]
+      [:p msg]
+      [:div.spread
+       [:span]
+       [:action-buttons
+        [:button
+         {:title "Cancel"
+          :on-click #(done-fn)}
+         [icon (rc/inline "tabler/outline/x.svg")]
+         "Cancel"]
+        [:button
+         {:title "Ok"
+          :on-click #(done-fn true)}
+         [icon (rc/inline "tabler/outline/check.svg")]
+         "Ok"]]]]]))
+
+(defn show-confirm-modal! [state message]
+  (js/Promise. (fn [res]
+                 (swap! state show-modal
+                        [component:dialog-modal state message res]))))
+
 (defn component:log-item [log state show?]
   (fn [] ; has to be in a function to isolate the InView observer
     (let [parent (get-parent (:parent log) (:log @state))
@@ -526,13 +584,15 @@
          [:action-buttons
           [icon
            {:title "Delete image"
-            :on-click #(when (js/confirm "Delete this image?")
-                         (swap! state delete-log-entry log))}
+            :on-click #(p/let [confirm (show-confirm-modal! state
+                                         "Delete this image?")]
+                         (when confirm (swap! state delete-log-entry log)))}
            (rc/inline "tabler/outline/trash.svg")]
           [icon
            {:title "Revert image"
-            :on-click #(when (js/confirm "Revert to original image?")
-                         (revert-to-original-image! state log))}
+            :on-click #(p/let [confirm (show-confirm-modal! state
+                                         "Revert to original image?")]
+                         (when confirm (revert-to-original-image! state log)))}
            (rc/inline "tabler/outline/arrow-back-up.svg")]
           [icon
            {:title "Download image"
@@ -646,28 +706,6 @@
                 "Get an API key here"] "."])
      [:action-buttons
       [component:done-button state]]]))
-
-(defn component:message [state msg]
-  [:div.modal
-   {:on-click #(when (= (aget % "currentTarget")
-                        (aget % "target"))
-                 (swap! state close-modal))}
-   [:div
-    [:div.spread
-     [:span]
-     [:span
-      [icon {:class "right clickable"
-             :on-click #(swap! state close-modal)}
-       (rc/inline "tabler/outline/x.svg")]]]
-    [:p msg]
-    [:div.spread
-     [:span]
-     [:action-buttons
-      [:button
-       {:title "Done"
-        :on-click #(swap! state close-modal)}
-       [icon (rc/inline "tabler/outline/check.svg")]
-       "Ok"]]]]])
 
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
