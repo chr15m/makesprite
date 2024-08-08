@@ -115,9 +115,13 @@ footer {
 
 footer img.me {
   width: 2em;
-  margin: 0px 0.5em;
+  margin: 0.5em 0.5em;
   border-radius: var(--radius);
   vertical-align: middle;
+}
+
+footer a.preserve {
+  white-space: nowrap;
 }
 
 button,
@@ -477,4 +481,26 @@ sprite-dialog canvas {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* mobile tweaks */
+
+@media (max-width: 500px) {
+  ul.log action-buttons inline-icon {
+    padding: 0.1em;
+  }
+
+  body {
+    padding: 0.1em;
+  }
+
+  header {
+    padding: 0px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  header {
+    padding: 0px !important;
+  }
 }

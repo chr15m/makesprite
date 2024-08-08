@@ -754,8 +754,9 @@
 (defn component:footer []
   [:footer
    "Copyright 2024 "
-   [:a {:href "https://mccormick.cx"
-        :target "_BLANK"}
+   [:a.preserve
+    {:href "https://mccormick.cx"
+     :target "_BLANK"}
     "Chris McCormick"
     [:img.me
      {:src "https://mccormick.cx/gfx/chris-mccormick-software-developer.jpg?makesprite"}]]])
