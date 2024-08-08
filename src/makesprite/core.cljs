@@ -96,6 +96,32 @@
   (aset canvas "width" (aget img "width"))
   (aset canvas "height" (aget img "height")))
 
+(defn flood-fill-blob-background
+  "Flood fill image blob corners and edges to remove the background."
+  [image-blob]
+  (p/let [img (load-image (js/URL.createObjectURL image-blob))
+          canvas (.createElement js/document "canvas")
+          ctx (.getContext canvas "2d")
+          w (aget img "width")
+          h (aget img "height")]
+    (js/console.log "img" img)
+    (resize-canvas-to-image! canvas img)
+    (.drawImage ctx img 0 0 w h)
+    ; flood fill at the corners and edges
+    (let [ff (floodfill. (.getImageData ctx 0 0 w h))
+          w (- w 2)
+          h (- h 2)
+          w2 (js/Math.floor (/ w 2))
+          h2 (js/Math.floor (/ h 2))]
+      (.fill ff "rgba(0,0,0,0)" 0 0 50)
+      (doseq [[x y] [[0 0] [w 0] [w h] [0 h]
+                     [0 h2] [w h2]
+                     [w2 0] [w2 h]]]
+        (.fill ff "rgba(0,0,0,0)" x y 50))
+      (.putImageData ctx (aget ff "imageData") 0 0))
+    (js/console.log "canvas-to-blob")
+    (canvas-to-blob canvas)))
+
 (defn process-b64-image-and-store! [result]
   (p/let [image-data-b64 (get-in result [:data 0 :b64_json])
           image-array (js/Uint8Array.from (js/atob image-data-b64)
@@ -104,36 +130,12 @@
           image-id (make-id)]
     (kv/set (str "image-" image-id) image-blob)
     ; flood fill the corners and edges
-    (p/let [img (load-image (js/URL.createObjectURL image-blob))
-            canvas (.createElement js/document "canvas")
-            ctx (.getContext canvas "2d")
-            w (aget img "width")
-            h (aget img "height")]
-      (js/console.log "img" img)
-      (resize-canvas-to-image! canvas img)
-      (.drawImage ctx img 0 0 w h)
-      ; flood fill at the corners and edges
-      (let [ff (floodfill. (.getImageData ctx 0 0 w h))
-            w (- w 2)
-            h (- h 2)
-            w2 (js/Math.floor (/ w 2))
-            h2 (js/Math.floor (/ h 2))]
-        (.fill ff "rgba(0,0,0,0)" 0 0 50)
-        (doseq [[x y] [[0 0] [w 0] [w h] [0 h]
-                       [0 h2] [w h2]
-                       [w2 0] [w2 h]]]
-          (.fill ff "rgba(0,0,0,0)" x y 50))
-        (.putImageData ctx (aget ff "imageData") 0 0))
-      ; save the processed version
-      (js/console.log "canvas-to-blob")
-      (p/let [blob (canvas-to-blob canvas)]
-        (kv/set (str "image-processed-" image-id) blob)
-        (js/console.log "image-processed saved")
-    (js/console.log "save result")
+    (p/let [processed-image-blob (flood-fill-blob-background image-blob)]
+      (kv/set (str "image-processed-" image-id) processed-image-blob)
+      (js/console.log "image-processed saved"))
     (-> result
         (update-in [:data 0] dissoc :b64_json)
-        (assoc :image-id image-id
-               :image-hash (sha256 blob)))))))
+        (assoc :image-id image-id))))
 
 (defn remove-error [*state]
   (update-in *state [:ui] dissoc :error-message))
@@ -400,7 +402,7 @@
       (resize-canvas-to-image! canvas img-data)
       (.putImageData ctx img-data 0 0))))
 
-(defn canvas-click [state log image-id ev]
+(defn canvas-click [state _log image-id ev]
   (let [canvas (-> ev .-currentTarget)
         ctx (.getContext canvas "2d")
         rect (.getBoundingClientRect canvas)
@@ -446,16 +448,7 @@
         (.fill ff "rgba(0,0,0,0)" xs ys 50)
         (.putImageData ctx (aget ff "imageData") 0 0)
         (p/let [blob (canvas-to-blob canvas)]
-          (kv/set (str "image-processed-" image-id) blob)
-          (swap! state
-                 update-in [:log]
-                 #(mapv
-                    (fn [log-check]
-                      (if (= (:id log-check) (:id log))
-                        (update-in log-check [:response] assoc
-                                   :image-hash (sha256 blob))
-                        log-check))
-                    %)))))))
+          (kv/set (str "image-processed-" image-id) blob))))))
 
 (defn component:image [state log image-id parent]
   (let [img-ref (r/atom nil)]
@@ -475,7 +468,6 @@
         (if img
           [:canvas.chequerboard
            {:id (str "canvas-" image-id)
-            :data-image-hash (get-in log [:response :image-hash])
             :ref #(mount-canvas % img)
             :on-click #(canvas-click state log image-id %)}]
           [:div (get-in parent [:prompt :text])])))))
@@ -498,27 +490,15 @@
                       log))
                   %))))
 
-(defn revert-to-original-image! [state log]
+(defn revert-to-original-image! [_state log]
   (p/let [image-id (get-in log [:response :image-id])
-          new-image-id (make-id)
-          original-image (kv/get (str "image-" image-id))
-          t (now)
-          deleted {:deleted true
-                   :lastModified t}]
-    (kv/set (str "image-" new-image-id) original-image)
-    (kv/set (str "image-processed-" new-image-id) original-image)
-    (kv/set (str "image-" image-id) deleted)
-    (kv/set (str "image-processed-" image-id) deleted)
-    (swap! state
-           update-in [:log]
-           #(mapv
-              (fn [log-check]
-                (if (= (:id log-check) (:id log))
-                  (update-in log-check [:response] assoc
-                             :image-id new-image-id
-                             :image-hash (sha256 original-image))
-                  log-check))
-              %))))
+          original-image-blob (kv/get (str "image-" image-id))
+          canvas (js/document.getElementById (str "canvas-" image-id))
+          ctx (.getContext canvas "2d")
+          processed-image-blob (flood-fill-blob-background original-image-blob)
+          img (load-image (js/URL.createObjectURL processed-image-blob))]
+    (.drawImage ctx img 0 0)
+    (kv/set (str "image-processed-" image-id) processed-image-blob)))
 
 (defn component:log-item [log state show?]
   (fn [] ; has to be in a function to isolate the InView observer
