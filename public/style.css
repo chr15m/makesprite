@@ -351,9 +351,9 @@ action-buttons .selected {
 }
 
 div.result {
-  height: 446px;
   border: .1rem solid var(--shade);
   border-radius: var(--radius);
+  display: flex;
 }
 
 div.result > div {
