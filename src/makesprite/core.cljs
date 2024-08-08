@@ -759,7 +759,8 @@
      :target "_BLANK"}
     "Chris McCormick"
     [:img.me
-     {:src "https://mccormick.cx/gfx/chris-mccormick-software-developer.jpg?makesprite"}]]])
+     {:src (str "https://mccormick.cx/gfx/"
+                "chris-mccormick-software-developer-thumb.jpg?makesprite")}]]])
 
 (defn component:header [state]
   [:header
