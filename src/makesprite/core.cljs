@@ -9,7 +9,7 @@
     ["idb-keyval" :as kv]
     ["q-floodfill$default" :as floodfill]
     ["react-intersection-observer" :refer [InView]]
-    #_ ["react-tag-autocomplete" :as ReactTags]))
+    ["react-tag-autocomplete" :as ReactTags]))
 
 ; *** constants *** ;
 
@@ -562,15 +562,15 @@
         [:div.result
          (when @show?
            [component:image state log image-id parent])]
-        #_ [:> ReactTags
-            {:ref (fn [el] (js/console.log "ReactTags" el))
-             :allow-new true
-             :new-tag-text "Create new tag:"
-             :tags #js []
-             :suggestions #js []
-             :on-delete #(js/console.log "delete" %)
-             :on-addition #(js/console.log "addition" %)
-             :on-validate #(js/console.log "validate" %)}]]])))
+        [:> ReactTags
+         {:ref (fn [el] (js/console.log "ReactTags" el))
+          :allow-new true
+          :new-tag-text "Create new tag:"
+          :tags #js []
+          :suggestions #js []
+          :on-delete #(js/console.log "delete" %)
+          :on-addition #(js/console.log "addition" %)
+          :on-validate #(js/console.log "validate" %)}]]])))
 
 (defn component:log [state]
   [:ul.log
