@@ -36,7 +36,8 @@
 (defn initial-state []
   {:inflight {}
    :settings {:openai-key nil}
-   :templates {}
+   :templates {} ; currently unusued / commented out
+   :favourites []
    :ui {:prompt {:text placeholder-prompt :values {}}
         :click-mode :sprite
         :screen :home}
@@ -249,6 +250,20 @@
         (aset (.. el -style) "height" css-height)
         (when (not= @height expanded)
           (reset! height expanded))))))
+
+(defn has-favourite [*state id]
+  (->> (get-in *state [:favourites])
+       (filterv #(= id %))
+       first))
+
+(defn del-favourite [*state id]
+  (update-in *state [:favourites]
+             #(filterv
+               (fn [fav-id] (not= id fav-id))
+               %)))
+
+(defn add-favourite [*state id]
+  (update-in *state [:favourites] conj id))
 
 (defn show-modal [*state component]
   (assoc-in *state [:ui :modal] component))
@@ -560,7 +575,8 @@
 (defn component:log-item [log state show?]
   (fn [] ; has to be in a function to isolate the InView observer
     (let [parent (get-parent (:parent log) (:log @state))
-          image-id (get-in log [:response :image-id])]
+          image-id (get-in log [:response :image-id])
+          favourite (has-favourite @state (:id log))]
       [:generated-image
        [:> InView {:as "span"
                    :on-change (fn [inView _entry]
@@ -585,13 +601,13 @@
           [icon
            {:title "Delete image"
             :on-click #(p/let [confirm (show-confirm-modal! state
-                                         "Delete this image?")]
+                                                            "Delete this image?")]
                          (when confirm (swap! state delete-log-entry log)))}
            (rc/inline "tabler/outline/trash.svg")]
           [icon
            {:title "Revert image"
             :on-click #(p/let [confirm (show-confirm-modal! state
-                                         "Revert to original image?")]
+                                                            "Revert to original image?")]
                          (when confirm (revert-to-original-image! state log)))}
            (rc/inline "tabler/outline/arrow-back-up.svg")]
           [icon
@@ -617,7 +633,15 @@
                                        prompt)]
                           (set-prompt! state prompt nil el)
                           (.scrollIntoView el true)))}
-           (rc/inline "tabler/outline/refresh.svg")]]]
+           (rc/inline "tabler/outline/refresh.svg")]
+          [icon
+           {:title (if favourite "Un-favourite" "Favourite")
+            :on-click #(swap! state
+                              (if favourite del-favourite add-favourite)
+                              (:id log))}
+           (if favourite
+             (rc/inline "tabler/filled/heart.svg")
+             (rc/inline "tabler/outline/heart.svg"))]]]
         [:div.result
          (when @show?
            [component:image state log image-id parent])]]])))
