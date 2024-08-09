@@ -908,10 +908,14 @@
 (def r (t/reader :json))
 
 (defn serialize-app-state [structure]
-  (t/write w structure))
+  (->
+    (t/write w structure)
+    js/JSON.parse))
 
-(defn deserialize-app-state [transit]
-  (t/read r transit))
+(defn deserialize-app-state [transit-object]
+  (->> transit-object
+       js/JSON.stringify
+       (t/read r)))
 
 ; clear the saved state
 ; (kv/del "makesprite-state")
