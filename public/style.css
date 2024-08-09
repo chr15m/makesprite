@@ -116,7 +116,7 @@ footer {
 footer img.me {
   width: 2em;
   margin: 0.5em 0.5em;
-  border-radius: var(--radius);
+  border-radius: 2em;
   vertical-align: middle;
 }
 
