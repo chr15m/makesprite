@@ -657,15 +657,16 @@
 
 (defn component:log [state & [favourites?]]
   [:ul.log
-   (for [log (reverse (:log @state))]
-     (when (and (not (:deleted log))
-                (or (not favourites?)
-                    (has-favourite @state (:id log))))
-       [:li {:key (:id log)}
-        (case (:k log)
-          :dall-e-response [component:log-item log state (r/atom false)]
-          #_#_ :dall-e-request [:span (get-in log [:prompt :text])]
-          nil)]))])
+   (doall
+     (for [log (reverse (:log @state))]
+       (when (and (not (:deleted log))
+                  (or (not favourites?)
+                      (has-favourite @state (:id log))))
+         [:li {:key (:id log)}
+          (case (:k log)
+            :dall-e-response [component:log-item log state (r/atom false)]
+            #_#_ :dall-e-request [:span (get-in log [:prompt :text])]
+            nil)])))])
 
 (defn component:extracted-sprite [state]
   (when-let [{:keys [img-data copied loading image-id bounding-box]}
