@@ -650,10 +650,12 @@
          (when @show?
            [component:image state log image-id parent])]]])))
 
-(defn component:log [state]
+(defn component:log [state & [favourites?]]
   [:ul.log
    (for [log (reverse (:log @state))]
-     (when (not (:deleted log))
+     (when (and (not (:deleted log))
+                (or (not favourites?)
+                    (has-favourite @state (:id log))))
        [:li {:key (:id log)}
         (case (:k log)
           :dall-e-response [component:log-item log state (r/atom false)]
@@ -794,6 +796,15 @@
         "Join"]]
       [component:done-button state "Close"]]]))
 
+(defn component:favourites [state]
+  [:<>
+   [:div
+    [component:extracted-sprite state]
+    [:h2 "Favourites"]
+    [component:settings-warning state]]
+   [:div
+    [component:log state true]]])
+
 (defn component:home [state]
   [:<>
    [:div
@@ -814,6 +825,7 @@
      (case screen
        :settings [component:settings state]
        :discord [component:discord state]
+       :favourites [component:favourites state]
        ;:templates [component:templates state]
        [component:home state])]))
 
@@ -844,6 +856,14 @@
           :class "clickable"
           :on-click #(swap! state assoc-in [:ui :screen] :discord)}
          (rc/inline "tabler/outline/brand-discord.svg")]]
+       [:li
+        [icon
+         {:title "Favourites"
+          :class "clickable"
+          :on-click #(swap! state assoc-in [:ui :screen] :favourites)}
+         (if (= (get-in @state [:ui :screen]) :favourites)
+           (rc/inline "tabler/filled/heart.svg")
+           (rc/inline "tabler/outline/heart.svg"))]]
        #_ [:li
            [icon
             {:title "Templates"
