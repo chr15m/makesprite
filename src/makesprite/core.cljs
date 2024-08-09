@@ -295,13 +295,17 @@
                         (swap! state assoc-in [:ui :screen] :settings))}
         "Click here to update the settings"] "."])))
 
-(defn set-prompt! [state prompt where el]
+(defn set-prompt! [state prompt where el & [post-render-cb]]
   (let [coords [:ui :prompt]
         coords (if where (conj coords where) coords)]
-    (swap! state assoc-in coords prompt))
+    (swap! state
+           #(-> %
+                (assoc-in coords prompt)
+                (assoc-in [:ui :screen] :home))))
   (p/do!
     (p/delay 0)
-    (update-textbox-height (r/cursor state [:ui :prompt :height]) el)))
+    (update-textbox-height (r/cursor state [:ui :prompt :height]) el)
+    (when post-render-cb (post-render-cb))))
 
 (defn component:prompt [state]
   (let [height (r/cursor state [:ui :prompt :height])]
@@ -631,8 +635,8 @@
                               prompt (if (= (type prompt) js/String)
                                        {:text prompt}
                                        prompt)]
-                          (set-prompt! state prompt nil el)
-                          (.scrollIntoView el true)))}
+                          (set-prompt! state prompt nil el
+                                       #(.scrollIntoView el true))))}
            (rc/inline "tabler/outline/refresh.svg")]
           [icon
            {:title (if favourite "Un-favourite" "Favourite")
