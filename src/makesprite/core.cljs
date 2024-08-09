@@ -541,7 +541,7 @@
          [icon (rc/inline "tabler/outline/check.svg")]
          "Ok"]]]]]))
 
-(defn component:dialog-modal [state msg callback]
+(defn component:dialog-modal [state msg message-icon callback]
   (let [done-fn (fn [& [result]]
                   (callback result)
                   (swap! state close-modal))]
@@ -551,7 +551,8 @@
                    (done-fn))}
      [:div
       [:div.spread
-       [:span]
+       [:span
+        [icon message-icon]]
        [:span
         [icon {:class "right clickable"
                :on-click #(done-fn)}
@@ -571,10 +572,10 @@
          [icon (rc/inline "tabler/outline/check.svg")]
          "Ok"]]]]]))
 
-(defn show-confirm-modal! [state message]
+(defn show-confirm-modal! [state message icon]
   (js/Promise. (fn [res]
                  (swap! state show-modal
-                        [component:dialog-modal state message res]))))
+                        [component:dialog-modal state message icon res]))))
 
 (defn component:log-item [log state show?]
   (fn [] ; has to be in a function to isolate the InView observer
@@ -602,18 +603,22 @@
                                 :click-mode :background)}
              (rc/inline "tabler/outline/eraser.svg")]])
          [:action-buttons
-          [icon
-           {:title "Delete image"
-            :on-click #(p/let [confirm (show-confirm-modal! state
-                                                            "Delete this image?")]
-                         (when confirm (swap! state delete-log-entry log)))}
-           (rc/inline "tabler/outline/trash.svg")]
-          [icon
-           {:title "Revert image"
-            :on-click #(p/let [confirm (show-confirm-modal! state
-                                                            "Revert to original image?")]
-                         (when confirm (revert-to-original-image! state log)))}
-           (rc/inline "tabler/outline/arrow-back-up.svg")]
+          (let [i (rc/inline "tabler/outline/trash.svg")]
+            [icon
+             {:title "Delete image"
+              :on-click #(p/let [confirm (show-confirm-modal!
+                                           state
+                                           "Delete this image?" i)]
+                           (when confirm (swap! state delete-log-entry log)))}
+             i])
+          (let [i (rc/inline "tabler/outline/arrow-back-up.svg")]
+            [icon
+             {:title "Revert image"
+              :on-click #(p/let [confirm (show-confirm-modal!
+                                           state
+                                           "Revert to original image?" i)]
+                           (when confirm (revert-to-original-image! state log)))}
+             i])
           [icon
            {:title "Download image"
             :on-click #(download-canvas
