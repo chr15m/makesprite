@@ -10,6 +10,9 @@
     ["q-floodfill$default" :as floodfill]
     ["react-intersection-observer" :refer [InView]]))
 
+(def w (t/writer :json))
+(def r (t/reader :json))
+
 ; *** constants *** ;
 
 (def api-url "https://api.openai.com")
@@ -724,13 +727,48 @@
    {:on-click #(swap! state assoc-in [:ui :screen] :home)}
    (or label "Done")])
 
+(defn blob-to-b64 [blob]
+  (js/Promise.
+    (fn [res _err]
+      (let [reader (js/FileReader.)]
+        (set! (.-onload reader)
+              (fn [e]
+                (let [data-url (.-result e.target)
+                      base64-str (second (.split data-url ","))]
+                  (res base64-str))))
+        (.readAsDataURL reader blob)))))
+
+(defn serialize-log-item [log]
+  (p/let [image-id (get-in log [:response :image-id])
+          image (kv/get (str "image-" image-id))
+          image-b64 (blob-to-b64 image)
+          image-processed (kv/get (str "image-processed-" image-id))
+          image-processed-b64 (blob-to-b64 image-processed)]
+    (assoc log
+           :image-b64 image-b64
+           :image-processed-b64 image-processed-b64)))
+
+(defn generate-export! [*state]
+  (p/let [favourites (set (get-in *state [:favourites]))
+          _ (js/console.log
+              "ids"
+              (map #(get-in % [:response :image-id]) (get-in *state [:log])))
+          log-items (filter #(contains? favourites (:id %))
+                            (get-in *state [:log]))
+          _ (js/console.log "log-items" log-items)
+          serialized-log-items (p/all (map serialize-log-item log-items))]
+    (js/console.log "serialized-log-items" serialized-log-items)
+    (js/console.log (t/write w serialized-log-items))
+    (js/console.log favourites)))
+
 (defn component:settings [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
     [:<>
      [:h2 "Settings"]
      [:label {:for "openai-key"} "OpenAI API key:"]
      [:input#openai-key
-      {:placeholder "Enter OpenAI API key..."
+      {:type "password"
+       :placeholder "Enter OpenAI API key..."
        :name "openai-key"
        :value openai-key
        :on-change #(swap! state assoc-in [:settings :openai-key]
@@ -741,7 +779,11 @@
                     :target "_BLANK"}
                 "Get an API key here"] "."])
      [:action-buttons
-      [component:done-button state]]]))
+      [component:done-button state]]
+     [:h3 "Export"]
+     [:button
+      {:on-click #(generate-export! @state)}
+      "Copy favourites"]]))
 
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
@@ -908,10 +950,6 @@
      [component:main state]
      [component:footer]]
     (js/document.getElementById "app")))
-
-(def w (t/writer :json))
-
-(def r (t/reader :json))
 
 (defn serialize-app-state [structure]
   (->
