@@ -969,6 +969,12 @@
      [:li
       [:ul
        [:li
+        [:a {:href "https://github.com/chr15m/makesprite"
+             :target "_BLANK"}
+         [icon
+          {:title "GitHub"}
+          (rc/inline "tabler/outline/brand-github.svg")]]]
+       [:li
         [icon
          {:title "Discord"
           :class "clickable"
