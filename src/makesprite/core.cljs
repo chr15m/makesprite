@@ -83,6 +83,11 @@
        (filter #(= (:id %) response-id))
        first))
 
+(defn get-log [id logs]
+  (->> logs
+       (filter #(= (:id %) id))
+       first))
+
 (defn load-image [url]
   (js/Promise.
     (fn [res err]
@@ -288,6 +293,15 @@
 (defn close-modal [*state]
   (update-in *state [:ui] dissoc :modal))
 
+(defn update-log-entry [*state match-log callback]
+  (update-in *state [:log]
+             #(mapv
+                (fn [log]
+                  (if (= (:id log) (:id match-log))
+                    (callback log)
+                    log))
+                %)))
+
 ; *** components *** ;
 
 (defn icon
@@ -356,8 +370,9 @@
                          :disabled (seq (:inflight @state))
                          :placeholder display-name
                          :value (get-in @state [:ui :prompt :values v])
-                         :on-change #(swap! state assoc-in [:ui :prompt :values v]
-                                            (-> % .-target .-value))}]])))]))))
+                         :on-change
+                         #(swap! state assoc-in [:ui :prompt :values v]
+                                 (-> % .-target .-value))}]])))]))))
 
 (defn update-bounding-box [bb x y]
   (-> bb
@@ -437,7 +452,7 @@
       (resize-canvas-to-image! canvas img-data)
       (.putImageData ctx img-data 0 0))))
 
-(defn canvas-click [state _log image-id ev]
+(defn canvas-click [state log image-id ev]
   (let [canvas (-> ev .-currentTarget)
         ctx (.getContext canvas "2d")
         rect (.getBoundingClientRect canvas)
@@ -482,8 +497,13 @@
       (let [ff (floodfill. img-data)]
         (.fill ff "rgba(0,0,0,0)" xs ys 50)
         (.putImageData ctx (aget ff "imageData") 0 0)
-        (p/let [blob (canvas-to-blob canvas)]
-          (kv/set (str "image-processed-" image-id) blob))))))
+        (p/let [blob (canvas-to-blob canvas)
+                t (now)]
+          (kv/set (str "image-processed-" image-id) blob)
+          (swap! state update-log-entry log
+                 #(update-in % [:fills] conj [xs ys t]))
+          (js/console.log "log state after fill"
+                          (get-log (:id log) (:log @state))))))))
 
 (defn component:image [state log image-id parent]
   (let [img-ref (r/atom nil)]
