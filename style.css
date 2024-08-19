@@ -1,0 +1,508 @@
+/*! modified:
+ * concrete.css v3.0.0 | MIT License | github.com/louismerlin/concrete.css
+ */
+
+/* @import url('https://fonts.googleapis.com/css2?family=Varela+Round:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+* {
+  font-family: "Varela Round", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+} */
+
+:root {
+  --fg: #112;
+  --bg: #ffe;
+  --shade: #889;
+  --radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #ffe;
+    --bg: #112;
+    --shade: #889;
+  }
+}
+
+html {
+  font-size: 1.25rem;
+  box-sizing: border-box;
+}
+
+*, ::after, ::before {
+  box-sizing: inherit;
+  text-decoration-thickness: .1rem;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Helvetica, Arial, sans-serif;
+  padding: 1em;
+}
+
+html, body, #app {
+  min-height: 100%;
+  height: 100%;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1em;
+}
+
+a {
+  color: var(--fg);
+}
+
+figure {
+  margin: 0;
+}
+
+figcaption {
+  text-align: right;
+  font-size: 0.8em;
+  border-bottom: .2rem solid var(--fg);
+  padding-bottom: .2rem;
+}
+
+img, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+main section + section {
+  padding: 2rem 0;
+}
+
+body header,
+body main,
+body footer {
+  margin: 0px auto;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 100%;
+}
+
+body main {
+  max-width: 100%;
+  width: 800px;
+  flex-grow: 1;
+}
+
+body > header {
+  padding-top: 8rem;
+  padding-bottom: 8rem;
+  font-size: 1.2em;
+}
+
+h1 { font-size: 2em; }
+h2 { font-size: 1.5em; }
+h3 { font-size: 1.17em; }
+h4 { font-size: 1.00em; }
+h5 { font-size: 0.83em; }
+h6 { font-size: 0.67em; }
+
+footer {
+  text-align: center;
+  padding: 2em 0px;
+}
+
+footer img.me {
+  width: 2em;
+  margin: 0.5em 0.5em;
+  border-radius: 2em;
+  vertical-align: middle;
+}
+
+footer a.preserve {
+  white-space: nowrap;
+}
+
+button,
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+  display: inline-block;
+  vertical-align: middle;
+  padding: .2rem .5rem;
+  font-size: 1rem;
+  font-weight: normal;
+  margin-bottom: .5rem;
+  background: var(--fg);
+  color: var(--bg);
+  border: .1rem solid var(--fg);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+button:disabled,
+input[type="button"]:disabled,
+input[type="reset"]:disabled,
+input[type="submit"]:disabled,
+input:disabled,
+textarea[readonly]{
+  cursor: not-allowed; 
+  background: var(--shade);
+  border: 2px solid var(--shade);
+}
+
+ul {
+  list-style: square;
+}
+
+nav {
+  margin: 0.5em 0;
+}
+
+nav ul {
+  padding: 0;
+  list-style: none;
+}
+
+nav ul li {
+  margin: 0 .2rem;
+  display: inline-block;
+}
+
+fieldset {
+  border: .1rem solid var(--fg);
+}
+
+label, legend {
+  display: block;
+  font-weight: bold;
+  margin-bottom: .4rem;
+}
+
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="text"],
+input[type="url"],
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  box-shadow: none;
+  box-sizing: inherit;
+  padding: .5rem .5rem;
+  width: 100%;
+  font-size: 1rem;
+  color: var(--fg);
+  background-color: var(--bg);
+  border: .1rem solid var(--fg);
+  border-radius: var(--radius);
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+/**
+ * Set margin for form elements.
+ */
+
+fieldset, input, select, textarea {
+  margin: 0 0 .8rem 0;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg);
+  font-style: italic;
+  opacity: 1;
+}
+
+table {
+  width: 100%;
+  border-spacing: 0;
+}
+
+td, th {
+  padding: .4rem;
+}
+
+td:first-child, th:first-child {
+  padding-left: 0;
+}
+
+td:last-child, th:last-child {
+  padding-right: 0;
+}
+
+th {
+  border-bottom: .1rem solid var(--fg);
+  text-align: left;
+}
+
+td {
+  border-bottom: .05rem solid var(--fg);
+}
+
+blockquote, pre {
+  margin-left: 0;
+  margin-right: 0;
+  padding: .5rem .8rem;
+  border-left: .1rem solid var(--fg);
+  overflow-y: hidden;
+}
+
+pre {
+  border: .05rem dotted var(--fg);
+  border-left: .1rem solid var(--fg);
+}
+
+pre > code {
+  white-space: pre;
+  display: block;
+  font-size: .8rem;
+}
+
+progress {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  height: .5rem;
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: .1rem solid var(--fg);
+  border-radius: var(--border-radius);
+}
+
+progress::-webkit-progress-bar {
+  background-color: var(--bg);
+}
+
+progress::-webkit-progress-value {
+  background-color: var(--fg);
+}
+
+progress::-moz-progress-bar {
+  background-color: var(--fg);
+}
+
+hr {
+  border: .05rem solid var(--fg);
+}
+
+.warning {
+  border-color: red;
+}
+
+/* layout */
+
+.spread {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* special */
+
+inline-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0px 0.25em;
+}
+
+ul.log {
+  list-style-type: none;
+  margin: 0px;
+  padding: 0px;
+}
+
+ul.log li {
+  margin: 2em 0px;
+}
+
+ul.log action-buttons {
+  display: flex;
+  justify-content: end;
+  gap: 0;
+}
+
+ul.log action-buttons inline-icon {
+  padding: 0.5em;
+  margin: 0px;
+}
+
+action-buttons {
+  display: flex;
+  justify-content: end;
+  gap: 1em;
+}
+
+action-buttons * {
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+action-buttons .selected {
+  border: 2px solid var(--shade);
+  border-radius: var(--radius);
+}
+
+div.result {
+  border: .1rem solid var(--shade);
+  border-radius: var(--radius);
+  display: flex;
+}
+
+div.result > div {
+  padding: 1em;
+}
+
+[data-notification-text] {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+[data-notification-text]::before {
+  content: "";
+  visibility: visible;
+  opacity: 1;
+  position: absolute;
+}
+
+[data-notification-text].notify::before {
+  content: attr(data-notification-text);
+  background-color: rgba(0,0,0,0.3);
+  color: var(--fg);
+  padding: 0.25em;
+  transition: visibility 0s 2s, opacity 1s 1s linear, display 0s 0s;
+  visibility: hidden;
+  opacity: 0;
+  margin: 0px;
+  margin-top: -3.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 8em;
+  border-radius: var(--radius);
+}
+
+.error {
+  background-color: #782828;
+  padding: 0.5em 1em;
+  border-radius: var(--radius);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.modal {
+  position: fixed;
+  z-index: 1;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.modal > * {
+  min-width: 50%;
+  max-width: 90%;
+  max-height: 90%;
+  background-color: var(--bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1em;
+}
+
+sprite-dialog canvas {
+  margin: 1em;
+  padding: 1em;
+  min-width: 0;
+  min-height: 0;
+  max-width: 80%;
+  height: auto;
+  max-height: 80%;
+  object-fit: contain;
+}
+
+.chequerboard {
+  background-color: #888;
+  background-image:
+    linear-gradient(45deg, #999 25%, transparent 25%),
+    linear-gradient(-45deg, #999 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #999 75%),
+    linear-gradient(-45deg, transparent 75%, #999 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+}
+
+/*** loading spinner ***/
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+#loading {
+  display: flex;
+  flex-direction: column;
+  gap: 2em;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+#loading > div:first-child {
+  animation: spin 0.33s linear infinite;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  border: 3px solid transparent;
+  border-left: 3px solid silver;
+  border-right: 3px solid silver;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* mobile tweaks */
+
+@media (max-width: 500px) {
+  ul.log action-buttons inline-icon {
+    padding: 0.1em;
+  }
+
+  body {
+    padding: 0.1em;
+  }
+
+  header {
+    padding: 0px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  header {
+    padding: 0px !important;
+  }
+}
