@@ -8,7 +8,8 @@
     [cognitect.transit :as t]
     ["idb-keyval" :as kv]
     ["q-floodfill$default" :as floodfill]
-    ["react-intersection-observer" :refer [InView]]))
+    ["react-intersection-observer" :refer [InView]]
+    ["jszip" :as JSZip]))
 
 (def w (t/writer :json))
 (def r (t/reader :json))
@@ -90,10 +91,10 @@
         (aset img "onerror" err)
         (aset img "src" url)))))
 
-(defn canvas-to-blob [canvas]
+(defn canvas-to-blob [canvas & [image-type quality]]
   (js/Promise.
     (fn [res _err]
-      (.toBlob canvas res))))
+      (.toBlob canvas res image-type quality))))
 
 (defn resize-canvas-to-image! [canvas img]
   (aset canvas "width" (aget img "width"))
@@ -124,6 +125,16 @@
       (.putImageData ctx (aget ff "imageData") 0 0))
     (js/console.log "canvas-to-blob")
     (canvas-to-blob canvas)))
+
+(defn image-blob-to-jpeg-blog [image-blob]
+  (p/let [img (load-image (js/URL.createObjectURL image-blob))
+          canvas (.createElement js/document "canvas")
+          ctx (.getContext canvas "2d")
+          w (aget img "width")
+          h (aget img "height")]
+    (resize-canvas-to-image! canvas img)
+    (.drawImage ctx img 0 0 w h)
+    (canvas-to-blob canvas "image/jpeg" 0.75)))
 
 (defn process-b64-image-and-store! [result]
   (p/let [image-data-b64 (get-in result [:data 0 :b64_json])
@@ -232,16 +243,19 @@
                            (clj->js {"image/png" sprite-blob}))]
     (js/navigator.clipboard.write #js [clipboard-item])))
 
-(defn download-canvas [canvas sprite-name]
-  (p/let [blob (canvas-to-blob canvas)
-          url (js/URL.createObjectURL blob)
-          link (js/document.createElement "a")]
+(defn download-file [blob filename]
+  (let [url (js/URL.createObjectURL blob)
+        link (js/document.createElement "a")]
     (aset link "href" url)
-    (aset link "download" (str sprite-name ".png"))
+    (aset link "download" filename)
     (js/document.body.appendChild link)
     (.click link)
     (js/document.body.removeChild link)
     (js/URL.revokeObjectURL url)))
+
+(defn download-canvas [canvas sprite-name]
+  (p/let [blob (canvas-to-blob canvas)]
+    (download-file blob (str sprite-name ".png"))))
 
 (defn update-textbox-height [height element]
   (when element
@@ -738,28 +752,31 @@
                   (res base64-str))))
         (.readAsDataURL reader blob)))))
 
-(defn serialize-log-item [log]
+(defn serialize-log-image [log]
   (p/let [image-id (get-in log [:response :image-id])
-          image (kv/get (str "image-" image-id))
-          image-b64 (blob-to-b64 image)
-          image-processed (kv/get (str "image-processed-" image-id))
-          image-processed-b64 (blob-to-b64 image-processed)]
-    (assoc log
-           :image-b64 image-b64
-           :image-processed-b64 image-processed-b64)))
+          image-blob (kv/get (str "image-" image-id))
+          jpeg-blob (image-blob-to-jpeg-blog image-blob)
+          image-b64 (blob-to-b64 jpeg-blob)
+          ;image-processed (kv/get (str "image-processed-" image-id))
+          ;image-processed-b64 (blob-to-b64 image-processed)
+          ]
+    [image-id image-b64]))
 
-(defn generate-export! [*state]
-  (p/let [favourites (set (get-in *state [:favourites]))
-          _ (js/console.log
-              "ids"
-              (map #(get-in % [:response :image-id]) (get-in *state [:log])))
+(defn generate-export! [state]
+  (swap! state assoc-in [:ui :generating-export] true)
+  (p/let [favourites (set (get-in @state [:favourites]))
           log-items (filter #(contains? favourites (:id %))
-                            (get-in *state [:log]))
-          _ (js/console.log "log-items" log-items)
-          serialized-log-items (p/all (map serialize-log-item log-items))]
-    (js/console.log "serialized-log-items" serialized-log-items)
-    (js/console.log (t/write w serialized-log-items))
-    (js/console.log favourites)))
+                            (get-in @state [:log]))
+          serialized-images (p/all (map serialize-log-image log-items))
+          log-items-transit (t/write w log-items)
+          zip (JSZip.)]
+    (.file zip "makesprite.transit.json" log-items-transit)
+    (let [img-folder (.folder zip "images")]
+      (doseq [[id b64] serialized-images]
+        (.file img-folder (str "image-" id ".jpg") b64 #js {:base64 true})))
+    (p/let [content (.generateAsync zip #js {:type "blob"})]
+      (download-file content "makesprite-export.zip")
+      (swap! state update-in [:ui] dissoc :generating-export))))
 
 (defn component:settings [state]
   (let [openai-key (get-in @state [:settings :openai-key])]
@@ -782,8 +799,13 @@
       [component:done-button state]]
      [:h3 "Export"]
      [:button
-      {:on-click #(generate-export! @state)}
-      "Copy favourites"]]))
+      {:on-click #(generate-export! state)}
+      (if (get-in @state [:ui :generating-export])
+        [icon
+         {:class "spin"}
+         (rc/inline "tabler/outline/spiral.svg")]
+        [icon (rc/inline "tabler/outline/download.svg")])
+      "Export favourites"]]))
 
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
@@ -799,9 +821,10 @@
         [icon (rc/inline "tabler/outline/template.svg")]
         "save template"])
      [:action-buttons
-      [:button {:on-click #(set-prompt! state {:text ""
-                                               :values {}}
-                                        nil (js/document.getElementById "prompt"))
+      [:button {:on-click
+                #(set-prompt! state {:text ""
+                                     :values {}}
+                              nil (js/document.getElementById "prompt"))
                 :disabled disabled}
        [icon (rc/inline "tabler/outline/trash.svg")]
        "clear"]
@@ -971,7 +994,8 @@
                  (-> new-state
                      (dissoc :inflight)
                      (update-in [:ui] dissoc
-                                :extracted-sprite :modal)
+                                :extracted-sprite :modal
+                                :generating-export)
                      serialize-app-state)))))
 
 (defn init []
