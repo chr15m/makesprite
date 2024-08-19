@@ -463,12 +463,14 @@ sprite-dialog canvas {
 
 #loading {
   display: flex;
+  flex-direction: column;
+  gap: 2em;
   justify-content: center;
   align-items: center;
   height: 100%;
 }
 
-#loading div {
+#loading > div:first-child {
   animation: spin 0.33s linear infinite;
   width: 48px;
   height: 48px;

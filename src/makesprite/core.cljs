@@ -105,10 +105,21 @@
   (aset canvas "width" (aget img "width"))
   (aset canvas "height" (aget img "height")))
 
-(defn flood-fill-blob-background
+(defn image-to-blob
+  [img]
+  (p/let [canvas (.createElement js/document "canvas")
+          ctx (.getContext canvas "2d")
+          w (aget img "width")
+          h (aget img "height")]
+    (js/console.log "img" img)
+    (resize-canvas-to-image! canvas img)
+    (.drawImage ctx img 0 0 w h)
+    (canvas-to-blob canvas)))
+
+(defn flood-fill-image-background
   "Flood fill image blob corners and edges to remove the background."
-  [image-blob]
-  (p/let [img (load-image (js/URL.createObjectURL image-blob))
+  [url]
+  (p/let [img (load-image url)
           canvas (.createElement js/document "canvas")
           ctx (.getContext canvas "2d")
           w (aget img "width")
@@ -149,7 +160,8 @@
           image-id (make-id)]
     (kv/set (str "image-" image-id) image-blob)
     ; flood fill the corners and edges
-    (p/let [processed-image-blob (flood-fill-blob-background image-blob)]
+    (p/let [processed-image-blob (flood-fill-image-background
+                                   (js/URL.createObjectURL image-blob))]
       (kv/set (str "image-processed-" image-id) processed-image-blob)
       (js/console.log "image-processed saved"))
     (-> result
@@ -550,7 +562,8 @@
           original-image-blob (kv/get (str "image-" image-id))
           canvas (js/document.getElementById (str "canvas-" image-id))
           ctx (.getContext canvas "2d")
-          processed-image-blob (flood-fill-blob-background original-image-blob)
+          processed-image-blob (flood-fill-image-background
+                                 (js/URL.createObjectURL original-image-blob))
           img (load-image (js/URL.createObjectURL processed-image-blob))]
     (.drawImage ctx img 0 0)
     (kv/set (str "image-processed-" image-id) processed-image-blob)))
@@ -785,8 +798,8 @@
 (defn generate-export! [state]
   (swap! state assoc-in [:ui :generating-export] true)
   (p/let [favourites (set (get-in @state [:favourites]))
-          log-items (filter #(contains? favourites (:id %))
-                            (get-in @state [:log]))
+          log-items (filterv #(contains? favourites (:id %))
+                             (get-in @state [:log]))
           serialized-images (p/all (map serialize-log-image log-items))
           log-items-transit (t/write w log-items)
           zip (JSZip.)]
@@ -1034,12 +1047,40 @@
                                 :generating-export)
                      serialize-app-state)))))
 
+(defn loading-message [msg]
+  (let [m (js/document.querySelector "#loading-message")]
+    (aset m "innerHTML" msg)))
+
+(defn load-and-store-image [image-id]
+  (loading-message (str "Storing image " image-id))
+  (p/let [url (str "default-images/image-" image-id ".jpg")
+          image (load-image url)
+          image-blob (image-to-blob image)]
+    (kv/set (str "image-" image-id) image-blob)
+    ; flood fill the corners and edges
+    (loading-message (str "Storing processed image " image-id))
+    (p/let [processed-image-blob (flood-fill-image-background url)]
+      (kv/set (str "image-processed-" image-id) processed-image-blob)
+      (js/console.log "image-processed saved"))))
+
+(defn setup-initial-state []
+  (js/console.log "setup initial state")
+  (loading-message "Setting up")
+  (p/let [*state (initial-state)
+          _ (loading-message "Loading initial images")
+          res (js/fetch "makesprite-defaults.transit.json")
+          transit (.text res)
+          log (t/read r transit)]
+    (p/all (map #(load-and-store-image (get-in % [:response :image-id]))
+                log))
+    (assoc *state :log (vec log))))
+
 (defn init []
   (add-watch state :state-watcher #'state-watcher)
   (p/let [serialized-value (kv/get "makesprite-state")
           serialized (if serialized-value
                        (deserialize-app-state serialized-value)
-                       (initial-state))]
+                       (setup-initial-state))]
     (js/console.log "serialized state" serialized)
     (reset! state serialized)
     (start)))
