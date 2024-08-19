@@ -908,7 +908,9 @@
     [:h2 "Favourites"]
     [component:settings-warning state]]
    [:div
-    [component:log state true]]])
+    (if (empty? (:favourites @state))
+      [:p "You have not favourited any images yet."]
+      [component:log state true])]])
 
 (defn component:home [state]
   [:<>
