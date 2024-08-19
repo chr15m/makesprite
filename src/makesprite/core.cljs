@@ -118,7 +118,7 @@
 
 (defn flood-fill-image-background
   "Flood fill image blob corners and edges to remove the background."
-  [url]
+  [url & [additional-points]]
   (p/let [img (load-image url)
           canvas (.createElement js/document "canvas")
           ctx (.getContext canvas "2d")
@@ -133,10 +133,11 @@
           h (- h 2)
           w2 (js/Math.floor (/ w 2))
           h2 (js/Math.floor (/ h 2))]
-      (.fill ff "rgba(0,0,0,0)" 0 0 50)
       (doseq [[x y] [[0 0] [w 0] [w h] [0 h]
                      [0 h2] [w h2]
                      [w2 0] [w2 h]]]
+        (.fill ff "rgba(0,0,0,0)" x y 50))
+      (doseq [[x y] additional-points]
         (.fill ff "rgba(0,0,0,0)" x y 50))
       (.putImageData ctx (aget ff "imageData") 0 0))
     (js/console.log "canvas-to-blob")
@@ -557,7 +558,7 @@
                       log))
                   %))))
 
-(defn revert-to-original-image! [_state log]
+(defn revert-to-original-image! [state log]
   (p/let [image-id (get-in log [:response :image-id])
           original-image-blob (kv/get (str "image-" image-id))
           canvas (js/document.getElementById (str "canvas-" image-id))
@@ -566,7 +567,8 @@
                                  (js/URL.createObjectURL original-image-blob))
           img (load-image (js/URL.createObjectURL processed-image-blob))]
     (.drawImage ctx img 0 0)
-    (kv/set (str "image-processed-" image-id) processed-image-blob)))
+    (kv/set (str "image-processed-" image-id) processed-image-blob)
+    (swap! state update-log-entry log #(dissoc % :fills))))
 
 (defn component:message-modal [state msg]
   (let [done-fn #(swap! state close-modal)]
@@ -800,6 +802,7 @@
   (p/let [favourites (set (get-in @state [:favourites]))
           log-items (filterv #(contains? favourites (:id %))
                              (get-in @state [:log]))
+          ;log-items (get-in @state [:log])
           serialized-images (p/all (map serialize-log-image log-items))
           log-items-transit (t/write w log-items)
           zip (JSZip.)]
@@ -1046,7 +1049,7 @@
   (let [m (js/document.querySelector "#loading-message")]
     (aset m "innerHTML" msg)))
 
-(defn load-and-store-image [image-id]
+(defn load-and-store-image [image-id fills]
   (loading-message (str "Storing image " image-id))
   (p/let [url (str "default-images/image-" image-id ".jpg")
           image (load-image url)
@@ -1054,7 +1057,9 @@
     (kv/set (str "image-" image-id) image-blob)
     ; flood fill the corners and edges
     (loading-message (str "Storing processed image " image-id))
-    (p/let [processed-image-blob (flood-fill-image-background url)]
+    (p/let [processed-image-blob (flood-fill-image-background
+                                   url
+                                   (reverse fills))]
       (kv/set (str "image-processed-" image-id) processed-image-blob)
       (js/console.log "image-processed saved"))))
 
@@ -1066,7 +1071,8 @@
           res (js/fetch "makesprite-defaults.transit.json")
           transit (.text res)
           log (t/read r transit)]
-    (p/all (map #(load-and-store-image (get-in % [:response :image-id]))
+    (p/all (map #(load-and-store-image (get-in % [:response :image-id])
+                                       (get-in % [:fills]))
                 log))
     (assoc *state :log (vec log))))
 
