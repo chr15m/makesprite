@@ -852,7 +852,21 @@
          {:class "spin"}
          (rc/inline "tabler/outline/spiral.svg")]
         [icon (rc/inline "tabler/outline/download.svg")])
-      "Export favourites"]]))
+      "Export favourites"]
+     [:h3 "Reset"]
+     (let [i (rc/inline "tabler/outline/alert-circle.svg")]
+       [:button
+        {:on-click
+         #(p/let [confirm (show-confirm-modal!
+                            state
+                            [:span.error "Reset the app and DELETE ALL DATA?"] i)]
+            (when confirm
+              (p/do!
+                (kv/clear)
+                ; (reset! state nil)
+                (.reload js/location))))}
+        [icon (rc/inline "tabler/outline/alert-circle.svg")]
+        "Reset the app"])]))
 
 (defn component:action-buttons [state]
   (let [openai-key (get-in @state [:settings :openai-key])
