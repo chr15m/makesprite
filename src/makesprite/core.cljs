@@ -339,7 +339,7 @@
                         (swap! state assoc-in [:ui :screen] :settings))}
         "Click here to update the settings"] "."])))
 
-(defn set-prompt! [state prompt where el & [post-render-cb]]
+(defn set-prompt! [state prompt where & [post-render-cb]]
   (let [coords [:ui :prompt]
         coords (if where (conj coords where) coords)]
     (swap! state
@@ -348,7 +348,8 @@
                 (assoc-in [:ui :screen] :home))))
   (p/do!
     (p/delay 0)
-    (update-textbox-height (r/cursor state [:ui :prompt :height]) el)
+    (update-textbox-height (r/cursor state [:ui :prompt :height])
+                           (js/document.querySelector "#prompt"))
     (when post-render-cb (post-render-cb))))
 
 (defn component:prompt [state]
@@ -368,8 +369,7 @@
            :on-change #(let [el (-> % .-target)]
                          (set-prompt! state
                                       (aget el "value")
-                                      :text
-                                      el))
+                                      :text))
            :value txt}]
          (doall
            (for [v variables]
@@ -687,13 +687,12 @@
           [icon
            {:title "Re-run prompt"
             :on-click (fn [_ev]
-                        (let [el (js/document.querySelector "#prompt")
-                              prompt (:prompt parent)
+                        (let [prompt (:prompt parent)
                               prompt (if (= (type prompt) js/String)
                                        {:text prompt}
                                        prompt)]
-                          (set-prompt! state prompt nil el
-                                       #(.scrollIntoView el true))))}
+                          (set-prompt! state prompt nil
+                                       #(.scrollIntoView (js/document.querySelector "#prompt") true))))}
            (rc/inline "tabler/outline/refresh.svg")]
           [icon
            {:title (if favourite "Un-favourite" "Favourite")
@@ -869,7 +868,7 @@
       [:button {:on-click
                 #(set-prompt! state {:text ""
                                      :values {}}
-                              nil (js/document.getElementById "prompt"))
+                              nil)
                 :disabled disabled}
        [icon (rc/inline "tabler/outline/trash.svg")]
        "clear"]
