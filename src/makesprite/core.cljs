@@ -896,7 +896,7 @@
       (rc/inline "tabler/outline/x.svg")]]))
 
 (defn component:discord [state]
-  (let [discord-link "https://discord.gg/gNdX8b9d"]
+  (let [discord-link "https://discord.gg/egyRd6wd73"]
     [:<>
      [:h2 "Discord"]
      [:p
