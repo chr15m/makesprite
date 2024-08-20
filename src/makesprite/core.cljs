@@ -1052,30 +1052,34 @@
 
 (defn loading-message [msg]
   (let [m (js/document.querySelector "#loading-message")]
-    (aset m "innerHTML" msg)))
+    (aset m "textContent"
+          (str "Setting up initial sprites\n"
+               msg))))
 
 (defn load-and-store-image [image-id fills]
-  (loading-message (str "Storing image " image-id))
-  (p/let [url (str "default-images/image-" image-id ".jpg")
-          image (load-image url)
-          image-blob (image-to-blob image)]
-    (kv/set (str "image-" image-id) image-blob)
-    ; flood fill the corners and edges
-    (loading-message (str "Storing processed image " image-id))
-    (p/let [processed-image-blob (flood-fill-image-background
-                                   url
-                                   (reverse fills))]
-      (kv/set (str "image-processed-" image-id) processed-image-blob)
-      (js/console.log "image-processed saved"))))
+  (when image-id
+    (loading-message (str "Storing image:\n" image-id))
+    (p/let [url (str "default-images/image-" image-id ".jpg")
+            image (load-image url)
+            image-blob (image-to-blob image)]
+      (kv/set (str "image-" image-id) image-blob)
+      ; flood fill the corners and edges
+      (loading-message (str "Storing processed image:\n" image-id))
+      (p/let [processed-image-blob (flood-fill-image-background
+                                     url
+                                     (reverse fills))]
+        (kv/set (str "image-processed-" image-id) processed-image-blob)
+        (js/console.log "image-processed saved")))))
 
 (defn setup-initial-state []
   (js/console.log "setup initial state")
-  (loading-message "Setting up")
+  (loading-message "")
   (p/let [*state (initial-state)
-          _ (loading-message "Loading initial images")
+          _ (loading-message "Loading data")
           res (js/fetch "makesprite-defaults.transit.json")
           transit (.text res)
           log (t/read r transit)]
+    (js/console.log "initial log data" log)
     (p/all (map #(load-and-store-image (get-in % [:response :image-id])
                                        (get-in % [:fills]))
                 log))
