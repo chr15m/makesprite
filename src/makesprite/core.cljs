@@ -78,11 +78,6 @@
   (let [parts (-> id str (.split "-"))]
     (str (first parts) "-" (second parts))))
 
-(defn get-parent [response-id logs]
-  (->> logs
-       (filter #(= (:id %) response-id))
-       first))
-
 (defn get-log [id logs]
   (->> logs
        (filter #(= (:id %) id))
@@ -631,7 +626,7 @@
 
 (defn component:log-item [log state show?]
   (fn [] ; has to be in a function to isolate the InView observer
-    (let [parent (get-parent (:parent log) (:log @state))
+    (let [parent (get-log (:parent log) (:log @state))
           image-id (get-in log [:response :image-id])
           favourite (has-favourite @state (:id log))]
       [:generated-image
@@ -787,27 +782,30 @@
         (.readAsDataURL reader blob)))))
 
 (defn serialize-log-image [log]
-  (p/let [image-id (get-in log [:response :image-id])
-          image-blob (kv/get (str "image-" image-id))
-          jpeg-blob (image-blob-to-jpeg-blog image-blob)
-          image-b64 (blob-to-b64 jpeg-blob)
-          ;image-processed (kv/get (str "image-processed-" image-id))
-          ;image-processed-b64 (blob-to-b64 image-processed)
-          ]
-    [image-id image-b64]))
+  (when-let [image-id (get-in log [:response :image-id])]
+    (p/let [
+            image-blob (kv/get (str "image-" image-id))
+            jpeg-blob (image-blob-to-jpeg-blog image-blob)
+            image-b64 (blob-to-b64 jpeg-blob)
+            ;image-processed (kv/get (str "image-processed-" image-id))
+            ;image-processed-b64 (blob-to-b64 image-processed)
+            ]
+      [image-id image-b64])))
 
 (defn generate-export! [state]
   (swap! state assoc-in [:ui :generating-export] true)
   (p/let [favourites (set (get-in @state [:favourites]))
-          log-items (filterv #(contains? favourites (:id %))
-                             (get-in @state [:log]))
+          log (get-in @state [:log])
+          log-items (filterv #(contains? favourites (:id %)) log)
+          parent-log-items (mapv #(get-log (:parent %) log) log-items)
+          log-items (concat log-items parent-log-items)
           ;log-items (get-in @state [:log])
           serialized-images (p/all (map serialize-log-image log-items))
           log-items-transit (t/write w log-items)
           zip (JSZip.)]
     (.file zip "makesprite.transit.json" log-items-transit)
     (let [img-folder (.folder zip "images")]
-      (doseq [[id b64] serialized-images]
+      (doseq [[id b64] (remove nil? serialized-images)]
         (.file img-folder (str "image-" id ".jpg") b64 #js {:base64 true})))
     (p/let [content (.generateAsync zip #js {:type "blob"})]
       (download-file content "makesprite-export.zip")
