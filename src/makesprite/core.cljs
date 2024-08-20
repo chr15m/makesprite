@@ -690,7 +690,9 @@
                                        {:text prompt}
                                        prompt)]
                           (set-prompt! state prompt nil
-                                       #(.scrollIntoView (js/document.querySelector "#prompt") true))))}
+                                       #(.scrollIntoView
+                                          (js/document.querySelector "#prompt")
+                                          true))))}
            (rc/inline "tabler/outline/refresh.svg")]
           [icon
            {:title (if favourite "Un-favourite" "Favourite")
