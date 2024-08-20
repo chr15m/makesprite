@@ -675,8 +675,11 @@
           [icon
            {:data-notification-text "Prompt copied!"
             :title "Copy prompt to clipboard"
-            :on-click #(let [el (-> % .-currentTarget)]
-                         (copy-text el (get-in parent [:prompt :text]))
+            :on-click #(let [el (-> % .-currentTarget)
+                             prompt (get-in parent [:prompt])
+                             prompt-text (replace-vars (:text prompt)
+                                                       (:values prompt))]
+                         (copy-text el prompt-text)
                          (notify el))}
            (rc/inline "tabler/outline/copy.svg")]
           [icon
