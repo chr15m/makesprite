@@ -431,6 +431,7 @@ div.result > div {
   justify-content: center;
   align-items: center;
   padding: 1em;
+  border-radius: var(--radius);
 }
 
 sprite-dialog canvas {
@@ -442,6 +443,7 @@ sprite-dialog canvas {
   height: auto;
   max-height: 80%;
   object-fit: contain;
+  border-radius: var(--radius);
 }
 
 .chequerboard {
