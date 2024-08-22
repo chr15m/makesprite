@@ -829,11 +829,11 @@
        :on-change #(swap! state assoc-in [:settings :openai-key]
                           (-> % .-target .-value))
        :class (when (not (is-valid-key? openai-key)) "warning")}]
-     (when (empty? openai-key)
-       [:small [:a {:href "https://platform.openai.com/api-keys"
-                    :target "_BLANK"}
-                "Get an API key here"] "."])
-     [:small "Your key stays in your browser and is not sent to any server except OpenAI."]
+     [:p
+      [:small [:a {:href "https://platform.openai.com/api-keys"
+                   :target "_BLANK"}
+               "Get an API key here"] "."
+       " Your key stays in your browser and is not sent to any server except OpenAI."]]
      [:action-buttons
       [component:done-button state "Set key"]]
      [:h3 "About"]
