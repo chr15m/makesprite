@@ -226,12 +226,15 @@
                     (update-in [:ui] dissoc :prompt)
                     (update-in [:log] conj res))))
       (fn [err]
+        (js/console.error "API error:" err)
         (swap! state
                #(-> %
                     (dissoc :inflight)
                     (assoc-in [:ui :error-message]
-                              (or (j/get-in err [:error :message])
-                                  (.toString err)))))))))
+                              (or
+                                (j/get err :message)
+                                (j/get-in err [:error :message])
+                                (.toString err)))))))))
 
 (defn notify [el]
   (let [cl (aget el "classList")
