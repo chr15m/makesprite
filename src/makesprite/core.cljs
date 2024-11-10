@@ -229,7 +229,9 @@
         (swap! state
                #(-> %
                     (dissoc :inflight)
-                    (assoc-in [:ui :error-message] (.toString err))))))))
+                    (assoc-in [:ui :error-message]
+                              (or (j/get-in err [:error :message])
+                                  (.toString err)))))))))
 
 (defn notify [el]
   (let [cl (aget el "classList")
